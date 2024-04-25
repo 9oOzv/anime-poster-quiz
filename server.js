@@ -268,6 +268,11 @@ class Game {
     this.#poster = this.#posters[this.#posterIndex];
     this.#circles = [];
     this.#answers = {};
+    this.#answers['ANSWER'] = {
+      answer: this.#poster.answers.join(' | '),
+      correct: true,
+      time: 0
+    };
     this.#posterImage = await loadImage(this.#poster.imageUrl);
   }
 
