@@ -8,39 +8,33 @@
     <link rel="stylesheet" href="./static/styles.css">
     <link rel="icon" href="./static/favicon.ico">
 </head>
-<body>
-    <div class='container flex'>
-      <div class='title-box'>
-        <h1>Anime Poster Quiz</h1>
-      </div>
-      <div id="content-box" class='content-box flex'>
-        <!-- CONTENT -->
-      </div>
-      <div id="status-box" class='status-box flex'>
-        <!-- STATUS MESSAGE -->
-      </div>
-      <form>
-          <div id="controls-box" class='controls-box flex-row stretch'>
-            <div class='flex stretch half'>
-              <div class='flex stretch'>
-                  <div class='flex'>
-                    <label for="nickname-input">Nickname</label>
-                  </div>
-                    <input type="text" id="nickname-input" name="nickname-input">
-                  <div class='flex'>
-                    <label for="answer-input">Answer</label>
-                  </div>
-                    <input type="text" id="answer-input" name="answer-input">
-              </div>
-              <div class='flex stretch'>
-                  <button type="button" onclick="submitAnswer()">Submit</button>
-              </div>
+<body class='column center middle nowrap'>
+    <div class='page column center nowrap'>
+        <div class='row title noshrink'>
+            <h1>Anime Poster Quiz</h1>
+        </div>
+        <div class='fill column f1 gap2 middle'>
+            <div id="content-box" class='f8 content-box box'>
+                <!-- CONTENT -->
             </div>
-            <div class='flex stretch half'>
-              <div id="completion-box" class="completion-box flex stretch"></div>
+            <div id="controls-box" class='f1 column nowrap noshrink gap2 box'>
+                <div class='column nowrap gap'>
+                    <label class='' for="nickname-input">Nickname</label>
+                    <input class='' type="text" id="nickname-input" name="nickname-input">
+                    <label class='' for="answer-input">Answer</label>
+                    <input class='' type="text" id="answer-input" name="answer-input">
+                </div>
+                <div class='column nowrap gap'>
+                    <button class='' type="button" onclick="submitAnswer()">Submit</button>
+                </div>
+            </div>
+            <div id="completion-box" class='f1 column noshrink gap box'>
+                <!-- COMPLETIONS -->
+            </div>
+            <div id="status-box" class='f1 noshrink box'>
+                <!-- STATUS MESSAGE -->
             </div>
         </div>
-      </form>
     </div>
 </body>
 </html>
