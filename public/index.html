@@ -8,16 +8,16 @@
     <link rel="stylesheet" href="./static/styles.css">
     <link rel="icon" href="./static/favicon.ico">
 </head>
-<body class='column center middle nowrap'>
-    <div class='page column center nowrap'>
-        <div class='row title noshrink'>
+<body class='column center nowrap'>
+    <div class='page column nowrap'>
+        <div class='row center title'>
             <h1>Anime Poster Quiz</h1>
         </div>
-        <div class='fill column f1 gap2 middle'>
-            <div id="content-box" class='f8 content-box box'>
+        <div class='fill column f1 gap2'>
+            <div id="content-box" class='big-tile f8 box'>
                 <!-- CONTENT -->
             </div>
-            <div id="controls-box" class='f1 column nowrap noshrink gap2 box'>
+            <div id="controls-box" class='tile f1 column nowrap gap2 pad2 box'>
                 <div class='column nowrap gap'>
                     <label class='' for="nickname-input">Nickname</label>
                     <input class='' type="text" id="nickname-input" name="nickname-input">
@@ -28,11 +28,13 @@
                     <button class='' type="button" onclick="submitAnswer()">Submit</button>
                 </div>
             </div>
-            <div id="completion-box" class='f1 column noshrink gap box'>
-                <!-- COMPLETIONS -->
-            </div>
-            <div id="status-box" class='column gap f1 noshrink box'>
-                <!-- STATUS MESSAGE -->
+            <div class='tile column f8 gap2'>
+                <div id="completion-box" class='f1 column pad box'>
+                    <!-- COMPLETIONS -->
+                </div>
+                <div id="status-box" class='f1 column gap pad box'>
+                    <!-- STATUS MESSAGE -->
+                </div>
             </div>
         </div>
     </div>
