@@ -90,13 +90,14 @@ function resultLine(name, result) {
   const d = document.createElement('span');
   a.textContent = name;
   b.textContent = result.answer;
-  c.textContent = result.correct ? '✓' : '✗';
-  d.textContent = `${result.time}ms`;
+  c.textContent = `${result.time}ms`;
+  d.textContent = result.correct ? '✓' : '✗';
   class_ = result.correct ? 'good' : 'bad';
   a.classList.add(class_);
   b.classList.add(class_);
   c.classList.add(class_);
   d.classList.add(class_);
+  div.classList.add('result-line');
   div.appendChild(a);
   div.appendChild(b);
   div.appendChild(c);
@@ -117,10 +118,12 @@ async function fetchResults() {
     .then(getJson)
     .then(results => {
       const lines = resultLines(results);
-      content.innerHTML = '';
+      const div = document.createElement('div');
+      div.classList.add('result-box');
       lines.forEach(
-        l => content.appendChild(l)
+        l => div.appendChild(l)
       );
+      content.innerHTML = div.outerHTML;
     });
 }
 
