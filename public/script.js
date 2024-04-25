@@ -1,6 +1,3 @@
-
-var fuse = null;
-var autofillChoices = [];
 var answerInput = null;
 var nickInput = null;
 var statusBox = null;
@@ -8,6 +5,8 @@ var content = null;
 var compBox = null;
 var compSelection = -1;
 var image = null;
+
+const worker = new Worker('static/worker.js', { type: "module" });
 
 var statusMessages = [];
 
@@ -160,14 +159,18 @@ function createAutofillOption(text) {
 }
 
 
-async function updateCompBox() {
-  preAutofillInput = answerInput.value
+worker.onmessage = (e) => {
   compBox.innerHTML = '';
-  compSelection = -1;
-  const filtered = fuse.search(preAutofillInput).slice(0, 10).map(v => v.item);
-  filtered.forEach(createAutofillOption);
+  for(const v of e.data) {
+    createAutofillOption(v);
+  }
 }
 
+
+async function updateCompletions() {
+  preAutofillInput = answerInput.value;
+  worker.postMessage(answerInput.value);
+}
 
 
 function updateSelected(items) {
@@ -208,17 +211,8 @@ function initKeyboard() {
 
 
 function initAutofill() {
-  fetchChoices();
-  answerInput.addEventListener("input", updateCompBox);
+  answerInput.addEventListener("input", updateCompletions);
   initKeyboard();
-}
-
-
-async function fetchChoices() {
-  choices = await fetch('choices')
-    .then(getJson)
-    .catch(error => reportError(error, 'Fetching autofill options failed'));
-  fuse = new Fuse(choices);
 }
 
 
