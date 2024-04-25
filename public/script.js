@@ -13,8 +13,7 @@ var statusMessages = [];
 
 function getBlob(response) {
   if (!response.ok) {
-    console.error('Error fetching blob')
-    setTimeout(run, 5000);
+    throw new Error('Failed fetching blob');
   }
   return response.blob();
 }
@@ -22,8 +21,7 @@ function getBlob(response) {
 
 async function getJson(response) {
   if (!response.ok) {
-    console.error('Error fetching JSON')
-    setTimeout(run, 5000);
+    throw new Error('Failed fetching JSON');
   }
   return response.json();
 }
@@ -65,12 +63,22 @@ async function reset() {
 }
 
 
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
 async function run(){
-  await fetch('next')
-    .then(getJson)
-    .then(doStuff)
-    .catch(error => reportError(error, 'Something went wrong'))
-    .finally(_ => setTimeout(run, 500));
+  while(true) {
+    await fetch('next')
+      .then(getJson)
+      .then(doStuff)
+      .catch(async error => {
+        reportError(error, 'Something went wrong');
+        await sleep(5000);
+      });
+    await sleep(250);
+  }
 }
 
 
