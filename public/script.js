@@ -6,7 +6,10 @@ var nickInput = null;
 var statusBox = null;
 var content = null;
 var compBox = null;
-var compSelection = -1
+var compSelection = -1;
+var image = null;
+
+var statusMessages = [];
 
 function getBlob(response) {
   if (!response.ok) {
@@ -58,7 +61,7 @@ async function reset() {
   compBox.innerHTML = '';
   compSelection = -1;
   content.innerHTML = '';
-  statusBox.innerHTML = '';
+  image = null;
 }
 
 
@@ -77,7 +80,16 @@ async function fetchImage() {
     .then(getBlob)
     .then(blob => {
       const imageUrl = URL.createObjectURL(blob);
-      content.innerHTML = `<img class='image' src="${imageUrl}" alt="Fetched Image">`;
+      if(image) {
+        image.src = imageUrl;
+      } else {
+        image = document.createElement('img');
+        image.src = imageUrl;
+        image.alt = 'hint';
+        image.classList.add('image');
+        content.innerHTML = '';
+        content.appendChild(image);
+      }
     });
 }
 
@@ -213,41 +225,36 @@ function init() {
 }
 
 
-function messageHtml(msg, classes) {
+function statusMessage(msg, classes) {
   if (typeof classes === 'string') {
     classes = [ classes ];
   }
   const div = document.createElement('div');
   div.textContent = msg;
-  div.classList.add(...classes);
-  return div.outerHTML;
+  div.classList.add(...classes, 'message');
+  return div;
 }
 
 
-function resetStatusBox() {
-  statusBox.innerHTML = '';
-}
-
-
-function setStatusBox(msg, classes) {
-  statusBox.innerHTML = messageHtml(msg, classes);
-  setTimeout(resetStatusBox, 2000);
+function addStatus(msg, classes) {
+  const message = statusMessage(msg, classes);
+  statusBox.appendChild(message);
+  setTimeout(() => statusBox.removeChild(message), 10000);
 }
 
 
 function reportSuccess(msg) {
-  setStatusBox(msg, 'success');
+  addStatus(msg, 'good');
 }
-
 
 
 function reportError(error, msg) {
   if(msg) {
     console.trace(msg, error)
-    setStatusBox(msg, 'error');
+    addStatus(msg, 'bad');
   } else {
     console.trace(error)
-    setStatusBox(error, 'error');
+    addStatus(error, 'bad');
   }
 }
 
