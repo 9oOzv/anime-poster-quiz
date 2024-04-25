@@ -351,15 +351,17 @@ class Game {
 }
 
 
+function success(res) {
+  res.json({ status: 'success' });
+}
+
+
 function serve(gameOptions) {
   const game = new Game(gameOptions);
   game.init();
   game.run();
   app.use(bodyParser.json());
   app.use('/static', express.static(path.join(__dirname, 'public')));
-  function success(res) {
-    res.json({ status: 'success' });
-  }
   app.get('/image.jpg', (_, res) => {
     game.queueImageRequest(res);
   });
