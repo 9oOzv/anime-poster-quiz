@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
+    <script type="text/javascript" src="/static/script.js"></script>
+    <title>Anime Poster Quiz</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="icon" href="/static/favicon.ico">
+</head>
+<body>
+    <div class='container flex'>
+      <div class='title-box'>
+        <h1>Anime Poster Quiz</h1>
+      </div>
+      <div id="content-box" class='content-box flex'>
+        <!-- CONTENT -->
+      </div>
+      <div id="status-box" class='status-box flex'>
+        <!-- STATUS MESSAGE -->
+      </div>
+      <form>
+          <div id="controls-box" class='controls-box flex-row stretch'>
+            <div class='flex stretch half'>
+              <div class='flex stretch'>
+                  <div class='flex'>
+                    <label for="nickname-input">Nickname</label>
+                  </div>
+                    <input type="text" id="nickname-input" name="nickname-input">
+                  <div class='flex'>
+                    <label for="answer-input">Answer</label>
+                  </div>
+                    <input type="text" id="answer-input" name="answer-input">
+              </div>
+              <div class='flex stretch'>
+                  <button type="button" onclick="submitAnswer()">Submit</button>
+              </div>
+            </div>
+            <div class='flex stretch half'>
+              <div id="completion-box" class="completion-box flex stretch"></div>
+            </div>
+        </div>
+      </form>
+    </div>
+</body>
+</html>
+
