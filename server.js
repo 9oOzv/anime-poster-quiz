@@ -12,17 +12,9 @@ const PORT = process.env.PORT || 3000;
 const exampleMediaData = [{"type":"ANIME","id":121,"idMal":121,"seasonYear":2003,"season":"FALL","seasonInt":34,"popularity":197705,"favourites":5028,"trending":3,"hashtag":null,"synonyms":["Full Metal Alchemist","FMA","\u05d0\u05dc\u05db\u05d9\u05de\u05d0\u05d9 \u05d4\u05de\u05ea\u05db\u05ea","Stalowy alchemik","\uac15\ucca0\uc758 \uc5f0\uae08\uc220\uc0ac","\u0e41\u0e02\u0e19\u0e01\u0e25 \u0e04\u0e19\u0e41\u0e1b\u0e23\u0e18\u0e32\u0e15\u0e38","\u92fc\u4e4b\u934a\u91d1\u8853\u5e2b","\u94a2\u4e4b\u70bc\u91d1\u672f\u5e08","\u0416\u0435\u043b\u0435\u0437\u043d\u0438\u044f\u0442 \u0410\u043b\u0445\u0438\u043c\u0438\u043a","\u0421\u0442\u0430\u043b\u0435\u0432\u0438\u0439 \u0430\u043b\u0445\u0456\u043c\u0456\u043a"],"tags":[{"id":1291,"name":"Alchemy"},{"id":29,"name":"Magic"},{"id":391,"name":"Philosophy"},{"id":85,"name":"Tragedy"},{"id":82,"name":"Male Protagonist"},{"id":34,"name":"Military"},{"id":102,"name":"Coming of Age"},{"id":56,"name":"Shounen"},{"id":111,"name":"War"},{"id":1310,"name":"Travel"},{"id":146,"name":"Alternate Universe"},{"id":1219,"name":"Disability"},{"id":639,"name":"Body Horror"},{"id":456,"name":"Conspiracy"},{"id":95,"name":"Steampunk"},{"id":774,"name":"Chimera"},{"id":198,"name":"Foreign"},{"id":324,"name":"Chibi"},{"id":801,"name":"Cyborg"},{"id":104,"name":"Anti-Hero"},{"id":1091,"name":"Religion"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx121-JUlbsyhTUNkk.png"},"genres":["Action","Adventure","Drama","Fantasy"],"averageScore":78,"meanScore":79,"title":{"native":"\u92fc\u306e\u932c\u91d1\u8853\u5e2b","romaji":"Hagane no Renkinjutsushi","english":"Fullmetal Alchemist"}},{"type":"ANIME","id":49,"idMal":49,"seasonYear":1993,"season":"WINTER","seasonInt":931,"popularity":8686,"favourites":94,"trending":0,"hashtag":null,"synonyms":["Ah! My Goddess (OVA)","Oh, mia dea!"],"tags":[{"id":253,"name":"Gods"},{"id":1045,"name":"Heterosexual"},{"id":321,"name":"Urban Fantasy"},{"id":86,"name":"Primarily Female Cast"},{"id":29,"name":"Magic"},{"id":404,"name":"College"},{"id":50,"name":"Seinen"},{"id":82,"name":"Male Protagonist"},{"id":779,"name":"Kuudere"},{"id":173,"name":"Motorcycles"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx49-jv1G7rSP4lxg.png"},"genres":["Comedy","Drama","Romance","Supernatural"],"averageScore":68,"meanScore":69,"title":{"native":"\u3042\u3042\u3063\u5973\u795e\u3055\u307e\u3063","romaji":"Aa! Megami-sama!","english":"Oh! My Goddess"}},{"type":"ANIME","id":19815,"idMal":19815,"seasonYear":2014,"season":"SPRING","seasonInt":142,"popularity":421767,"favourites":14413,"trending":5,"hashtag":"#nogenora","synonyms":["NGNL","NO GAME NO LIFE\u6e38\u620f\u4eba\u751f","\u6e38\u620f\u4eba\u751f","\u0e42\u0e19\u0e40\u0e01\u0e21 \u0e42\u0e19\u0e44\u0e25\u0e1f\u0e4c"],"tags":[{"id":244,"name":"Isekai"},{"id":91,"name":"Gambling"},{"id":146,"name":"Alternate Universe"},{"id":308,"name":"Video Games"},{"id":282,"name":"Hikikomori"},{"id":29,"name":"Magic"},{"id":82,"name":"Male Protagonist"},{"id":86,"name":"Primarily Female Cast"},{"id":98,"name":"Female Protagonist"},{"id":103,"name":"Politics"},{"id":39,"name":"Parody"},{"id":253,"name":"Gods"},{"id":1310,"name":"Travel"},{"id":779,"name":"Kuudere"},{"id":365,"name":"Memory Manipulation"},{"id":254,"name":"Kemonomimi"},{"id":1403,"name":"Class Struggle"},{"id":1419,"name":"Kingdom Management"},{"id":144,"name":"Meta"},{"id":23,"name":"Female Harem"},{"id":113,"name":"Nekomimi"},{"id":598,"name":"Elf"},{"id":100,"name":"Nudity"},{"id":66,"name":"Super Power"},{"id":1105,"name":"Judo"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/nx19815-bIo51RMWWhLv.jpg"},"genres":["Adventure","Comedy","Ecchi","Fantasy"],"averageScore":77,"meanScore":77,"title":{"native":"\u30ce\u30fc\u30b2\u30fc\u30e0\u30fb\u30ce\u30fc\u30e9\u30a4\u30d5","romaji":"No Game No Life","english":"No Game, No Life"}}];
 
 
-function lowerAlphaNum(str) {
-  return str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-}
-
-
 function isTypeable(str) {
   if(typeof str !== 'string') { return false; }
   return true
-  //const c = lowerAlphaNum(str);
-  //if(c.length <= 3 && str.length >= 3) { return false; }
-  //return true
 }
 
 
@@ -96,12 +88,17 @@ function fillCircles(ctx, circles) {
 
 
 class Game {
-  #mediaDataPath = 'media.json';
-  #revealWait = 5000;
-  #resultWait = 10000;
-  #resetWait = 1000;
-  #shortWait = 200;
-  #defaultWait = 1000;
+  #config = {
+      mediaDataPath: 'media.json',
+      revealWait: 5000,
+      resultWait: 10000,
+      resetWait: 1000,
+      shortWait: 200,
+      hintImagePath: 'image.jpg',
+      maxCircles: 20,
+      circleSizeMin: 0.02,
+      circleSizeMax: 0.1
+  };
   #answers = {};
   #results = {};
   #posterIndex = null;
@@ -111,16 +108,18 @@ class Game {
   #circles = [];
   #mediaData = exampleMediaData;
   #posters = [];
-  #hintImagePath = path.join(__dirname, 'public', 'image.jpg');
   #nextPhase = 'reset';
-  #maxCircles = 20;
   #resetRequests = [];
   #imageRequests = [];
   #resultRequests = [];
   #wait = 0;
-  #circleSizeMin = 0.1;
-  #circleSizeMax = 0.02;
   #choices = [];
+
+  constructor(options) {
+    for(const [k, v] of Object.entries(options)) {
+      this.#config[k] = v;
+    }
+  }
 
   allAnswers() {
     return this.#posters.reduce(
@@ -175,15 +174,20 @@ class Game {
   }
 
   async loadData() {
-    if(!this.#mediaDataPath) {
+    if(!this.#config.mediaDataPath) {
       console.info('No mediaDataPath given. Using example data');
       return;
     }
     try {
-      this.#mediaData = JSON.parse(await fs.readFile(this.#mediaDataPath, 'utf8'));
+      this.#mediaData = JSON.parse(
+        await fs.readFile(
+          this.#config.mediaDataPath,
+          'utf8'
+        )
+      );
       this.#posters = this.postersFromMediaData();
     } catch(error) {
-      console.error(`Could not load data from ${this.#mediaDataPath}`);
+      console.error(`Could not load data from ${this.#config.mediaDataPath}`);
     }
   }
 
@@ -192,40 +196,40 @@ class Game {
       console.log('Resetting');
       this.sendResets();
       this.#nextPhase = 'changePoster';
-      this.#wait = this.#resetWait;
+      this.#wait = this.#config.resetWait;
       return;
     }
     if (this.#nextPhase == 'results') {
       console.log('Showing results');
       this.sendResults();
       this.#nextPhase = 'reset';
-      this.#wait = this.#resultWait;
+      this.#wait = this.#config.resultWait;
       return;
     }
     if (this.#nextPhase == 'changePoster') {
       console.log('Changing poster');
       await this.newQuestion();
       this.#nextPhase = 'guess';
-      this.#wait = this.#shortWait;
+      this.#wait = this.#config.shortWait;
       return;
     }
-    if (this.#nextPhase == 'guess' && this.#circles.length >= this.#maxCircles) {
+    if (this.#nextPhase == 'guess' && this.#circles.length >= this.#config.maxCircles) {
       console.log('Revealing all');
       await this.revealAll();
       this.sendImages();
       this.#nextPhase = 'results';
-      this.#wait = this.#revealWait;
+      this.#wait = this.#config.revealWait;
       return;
     }
-    if (this.#nextPhase == 'guess' && this.#circles.length < this.#maxCircles) {
+    if (this.#nextPhase == 'guess' && this.#circles.length < this.#config.maxCircles) {
       console.log('Revealing more');
       await this.revealMore();
       this.sendImages();
-      this.#wait = this.#revealWait;
+      this.#wait = this.#config.revealWait;
       return;
     }
     console.log('Weird');
-    this.#wait = this.#defaultWait;
+    this.#wait = this.#config.defaultWait;
     return;
   }
 
@@ -253,21 +257,21 @@ class Game {
       createRandomCircle(
         image.width,
         image.height,
-        this.#circleSizeMin,
-        this.#circleSizeMax
+        this.#config.circleSizeMin,
+        this.#config.circleSizeMax
       )
     );
     await coverImage(
       image,
       this.#circles,
-      this.#hintImagePath
+      this.#config.hintImagePath
     );
   }
 
   async revealAll() {
     await revealImage(
       this.#posterImage,
-      this.#hintImagePath
+      this.#config.hintImagePath
     );
   }
 
@@ -282,7 +286,7 @@ class Game {
     let requests = this.#imageRequests;
     this.#imageRequests = [];
     console.log(`Sending hint image to ${requests.length} players`)
-    requests.forEach(res => res.sendFile(this.#hintImagePath));
+    requests.forEach(res => res.sendFile(this.#config.hintImagePath));
   }
 
   sendResults() {
@@ -347,57 +351,117 @@ class Game {
 }
 
 
-const game = new Game();
-game.init();
-game.run();
-
-
-app.use(bodyParser.json());
-app.use('/static', express.static(path.join(__dirname, 'public')));
-
-
-function success(res) {
-  res.json({ status: 'success' });
+function serve(gameOptions) {
+  const game = new Game(gameOptions);
+  game.init();
+  game.run();
+  app.use(bodyParser.json());
+  app.use('/static', express.static(path.join(__dirname, 'public')));
+  function success(res) {
+    res.json({ status: 'success' });
+  }
+  app.get('/image.jpg', (_, res) => {
+    game.queueImageRequest(res);
+  });
+  app.get('/', (_, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
+  app.get('/next', (_, res) => {
+    res.json(game.next());
+  });
+  app.get('/choices', (_, res) => {
+    res.json(game.choices());
+  });
+  app.post('/submit', (req, res) => {
+    const { nickname, answer } = req.body;
+    game.submitAnswer(nickname, answer);
+    success(res);
+  });
+  app.get('/reset', (_, res) => {
+    game.queueResetRequest(res);
+  });
+  app.get('/results', (_, res) => {
+    game.queueResultRequest(res);
+  });
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
 }
 
-
-app.get('/image.jpg', (_, res) => {
-  game.queueImageRequest(res);
-});
-
-
-app.get('/', (_, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-
-app.get('/next', (_, res) => {
-  res.json(game.next());
-});
-
-
-app.get('/choices', (_, res) => {
-  res.json(game.choices());
-});
-
-
-app.post('/submit', (req, res) => {
-  const { nickname, answer } = req.body;
-  game.submitAnswer(nickname, answer);
-  success(res);
-});
-
-
-app.get('/reset', (_, res) => {
-  game.queueResetRequest(res);
-});
-
-
-app.get('/results', (_, res) => {
-  game.queueResultRequest(res);
-});
-
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+require('yargs')
+  .scriptName("anime-poster-quiz")
+  .usage('$0 <cmd> [args]')
+  .command('serve', 'Serve', (yargs) => {
+    yargs.option('md', {
+        alias: 'media-data',
+        default: 'media.json',
+        describe: 'Data from AniList',
+        type: 'string'
+    })
+    .option('ri', {
+        alias: 'reveal-interval',
+        default: 5000,
+        describe: 'Poster reveal interval in milliseconds',
+        type: 'number'
+    })
+    .option('rt', {
+        alias: 'results-time',
+        default: 10000,
+        describe: 'Result screen time in milliseconds',
+        type: 'number'
+    })
+    .option('reset', {
+        alias: 'reset-time',
+        default: 1000,
+        describe: 'Additional wait between results and "reset". Not very important',
+        type: 'number'
+    })
+    .option('short-wait', {
+        default: 200,
+        describe: 'Shortest wait between phases. Maybe used in various places to prevent problems from network latency.',
+        type: 'number'
+    })
+    .option('default-wait', {
+        default: 1000,
+        describe: 'Just another wait to be used when there is no other appropriate setting',
+        type: 'number'
+    })
+    .option('min-cs', {
+        alias: 'min-circle-size',
+        default: 0.01,
+        describe: 'Minimum reveal circle radius. As a fraction of max(<image width>, <image height>)',
+        type: 'number'
+    })
+    .option('max-cs', {
+        alias: 'max-circle-size',
+        default: 0.1,
+        describe: 'Minimum reveal circle radius. As a fraction of max(<image width>, <image height>)',
+        type: 'number'
+    })
+    .option('nc', {
+        alias: 'num-circles',
+        default: 10,
+        describe: 'Number of circles to reveal',
+        type: 'number'
+    })
+    .option('hint-image-path', {
+        default: path.join(__dirname, 'public', 'image.jpg'),
+        describe: 'Place for the generated hint image',
+        type: 'string'
+    })
+  },
+  function (argv) {
+    serve({
+      mediaDataPath: argv.mediaData,
+      revealWait: argv.revealInterval,
+      resultWait: argv.resultsTime,
+      resetWait: argv.resetTime,
+      shortWait: argv.short_wait,
+      hintImagePath: argv.hintImagePath,
+      maxCircles: argv.numCircles,
+      circleSizeMin: argv.minCircleSize,
+      circleSizeMax: argv.maxCircleSize
+    })
+  })
+  .help()
+  .parse()
