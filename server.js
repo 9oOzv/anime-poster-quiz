@@ -12,6 +12,15 @@ const PORT = process.env.PORT || 3000;
 const exampleMediaData = [{"type":"ANIME","id":121,"idMal":121,"seasonYear":2003,"season":"FALL","seasonInt":34,"popularity":197705,"favourites":5028,"trending":3,"hashtag":null,"synonyms":["Full Metal Alchemist","FMA","\u05d0\u05dc\u05db\u05d9\u05de\u05d0\u05d9 \u05d4\u05de\u05ea\u05db\u05ea","Stalowy alchemik","\uac15\ucca0\uc758 \uc5f0\uae08\uc220\uc0ac","\u0e41\u0e02\u0e19\u0e01\u0e25 \u0e04\u0e19\u0e41\u0e1b\u0e23\u0e18\u0e32\u0e15\u0e38","\u92fc\u4e4b\u934a\u91d1\u8853\u5e2b","\u94a2\u4e4b\u70bc\u91d1\u672f\u5e08","\u0416\u0435\u043b\u0435\u0437\u043d\u0438\u044f\u0442 \u0410\u043b\u0445\u0438\u043c\u0438\u043a","\u0421\u0442\u0430\u043b\u0435\u0432\u0438\u0439 \u0430\u043b\u0445\u0456\u043c\u0456\u043a"],"tags":[{"id":1291,"name":"Alchemy"},{"id":29,"name":"Magic"},{"id":391,"name":"Philosophy"},{"id":85,"name":"Tragedy"},{"id":82,"name":"Male Protagonist"},{"id":34,"name":"Military"},{"id":102,"name":"Coming of Age"},{"id":56,"name":"Shounen"},{"id":111,"name":"War"},{"id":1310,"name":"Travel"},{"id":146,"name":"Alternate Universe"},{"id":1219,"name":"Disability"},{"id":639,"name":"Body Horror"},{"id":456,"name":"Conspiracy"},{"id":95,"name":"Steampunk"},{"id":774,"name":"Chimera"},{"id":198,"name":"Foreign"},{"id":324,"name":"Chibi"},{"id":801,"name":"Cyborg"},{"id":104,"name":"Anti-Hero"},{"id":1091,"name":"Religion"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx121-JUlbsyhTUNkk.png"},"genres":["Action","Adventure","Drama","Fantasy"],"averageScore":78,"meanScore":79,"title":{"native":"\u92fc\u306e\u932c\u91d1\u8853\u5e2b","romaji":"Hagane no Renkinjutsushi","english":"Fullmetal Alchemist"}},{"type":"ANIME","id":49,"idMal":49,"seasonYear":1993,"season":"WINTER","seasonInt":931,"popularity":8686,"favourites":94,"trending":0,"hashtag":null,"synonyms":["Ah! My Goddess (OVA)","Oh, mia dea!"],"tags":[{"id":253,"name":"Gods"},{"id":1045,"name":"Heterosexual"},{"id":321,"name":"Urban Fantasy"},{"id":86,"name":"Primarily Female Cast"},{"id":29,"name":"Magic"},{"id":404,"name":"College"},{"id":50,"name":"Seinen"},{"id":82,"name":"Male Protagonist"},{"id":779,"name":"Kuudere"},{"id":173,"name":"Motorcycles"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx49-jv1G7rSP4lxg.png"},"genres":["Comedy","Drama","Romance","Supernatural"],"averageScore":68,"meanScore":69,"title":{"native":"\u3042\u3042\u3063\u5973\u795e\u3055\u307e\u3063","romaji":"Aa! Megami-sama!","english":"Oh! My Goddess"}},{"type":"ANIME","id":19815,"idMal":19815,"seasonYear":2014,"season":"SPRING","seasonInt":142,"popularity":421767,"favourites":14413,"trending":5,"hashtag":"#nogenora","synonyms":["NGNL","NO GAME NO LIFE\u6e38\u620f\u4eba\u751f","\u6e38\u620f\u4eba\u751f","\u0e42\u0e19\u0e40\u0e01\u0e21 \u0e42\u0e19\u0e44\u0e25\u0e1f\u0e4c"],"tags":[{"id":244,"name":"Isekai"},{"id":91,"name":"Gambling"},{"id":146,"name":"Alternate Universe"},{"id":308,"name":"Video Games"},{"id":282,"name":"Hikikomori"},{"id":29,"name":"Magic"},{"id":82,"name":"Male Protagonist"},{"id":86,"name":"Primarily Female Cast"},{"id":98,"name":"Female Protagonist"},{"id":103,"name":"Politics"},{"id":39,"name":"Parody"},{"id":253,"name":"Gods"},{"id":1310,"name":"Travel"},{"id":779,"name":"Kuudere"},{"id":365,"name":"Memory Manipulation"},{"id":254,"name":"Kemonomimi"},{"id":1403,"name":"Class Struggle"},{"id":1419,"name":"Kingdom Management"},{"id":144,"name":"Meta"},{"id":23,"name":"Female Harem"},{"id":113,"name":"Nekomimi"},{"id":598,"name":"Elf"},{"id":100,"name":"Nudity"},{"id":66,"name":"Super Power"},{"id":1105,"name":"Judo"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/nx19815-bIo51RMWWhLv.jpg"},"genres":["Adventure","Comedy","Ecchi","Fantasy"],"averageScore":77,"meanScore":77,"title":{"native":"\u30ce\u30fc\u30b2\u30fc\u30e0\u30fb\u30ce\u30fc\u30e9\u30a4\u30d5","romaji":"No Game No Life","english":"No Game, No Life"}}];
 
 
+class GameError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'GameError'
+    Error.captureStackTrace(this, GameError);
+  }
+}
+
+
 function normalizeString(str) {
   return str
     .normalize("NFKD")
@@ -50,19 +59,43 @@ function isValidMedia(media) {
 }
 
 
+function arrayAlmostHas(array, value) {
+  if(!Array.isArray(array)){
+    return false;
+  }
+  return array.some(v => compare(v, value));
+}
+
+
+function inBetween(v, a, b) {
+  return (a ?? -Infinity) <= v <= (b ?? Infinity)
+}
+
+
 mediaFilters = new Map(Object.entries({
-  popularity: (m, min, max) => min <= m.popularity <= max,
+  popularity: (m, min, max) => inBetween(m.popularity, min, max),
+  favorites: (m, min, max) => inBetween(m.favorites, min, max),
+  year: (m, min, max) => inBetween(m.seasonYear, min, max),
+  sfw: (m) => m.isAdult,
+  nsfw: (m) => !m.isAdult,
+  genres: (m, ...genres) => genres.some(g => arrayAlmostHas(m.genres, g)),
+  tags: (m, ...tags) => tags.some(t => arrayAlmostHas((m.tags ?? []).map(t => t.name), t)),
   validMedia: isValidMedia
 }));
+
+
+function dummyImage(){
+    return createCanvas(10, 10).createJPEGStream();
+}
 
 
 class HintImage {
   #circles = [];
   #jpegStream;
-  #media;
+  #image;
 
-  constructor(media) {
-    this.#media = media;
+  constructor(image) {
+    this.#image = image;
   }
 
   createRandomCircle(width, height, minRadius = 0, maxRadius = 1) {
@@ -92,7 +125,7 @@ class HintImage {
     );
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = ctx.createPattern(
-      await this.image,
+      await this.#image,
       "repeat"
     );
     this.#circles.forEach(circle => {
@@ -104,12 +137,12 @@ class HintImage {
   }
 
   async revealAll() {
-    const canvas = blackCanvas(
-      await image.width,
-      await image.height
+    const canvas = this.blackCanvas(
+      this.width,
+      this.height
     )
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = ctx.createPattern(this.image, "repeat");;
+    ctx.fillStyle = ctx.createPattern(this.#image, "repeat");;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     this.#jpegStream = canvas.createJPEGStream();
   }
@@ -122,20 +155,20 @@ class HintImage {
     return canvas;
   }
 
-  get image() {
-    return this.#media.image;
-  }
-
   get jpegStream() {
     return this.#jpegStream;
   }
 
   get width() {
-    return this.image.then(image => image.width);
+    return this.#image.width;
   }
 
   get height() {
-    return this.image.then(image => image.height);
+    return this.#image.height;
+  }
+
+  get numCircles() {
+    return this.#circles.length;
   }
 
 }
@@ -155,9 +188,13 @@ class Media {
       this.#data.title.english,
       this.#data.title.romaji,
       this.#data.title.native,
-      ...(this.synonyms ?? []),
+      ...this.synonyms,
       ...this.hashtags
-    ];
+    ].filter(a => a !== null);
+  }
+
+  get synonyms() {
+    return this.#data.synonyms ?? [];
   }
 
   get hashtags() {
@@ -178,7 +215,7 @@ class Media {
     ].join(' | ');
   }
   
-  get image() {
+  async image() {
     return this.#image ??= loadImage(
       this.#data.coverImage.extraLarge
     );
@@ -234,6 +271,25 @@ class MediaCollection {
 }
 
 
+class Filter {
+
+  #name
+  #f
+  #args
+
+  constructor(filterSpec) {
+    this.#name = filterSpec.name;
+    this.#f = mediaFilters.get(filterSpec.name);
+    this.#args = filterSpec.args;
+  }
+  
+  run(media) {
+    debugger
+    this.#f(media, ...this.#args);
+  }
+}
+
+
 class FilterCollection {
   #filters = [];
   #filterSpecs = [];
@@ -250,10 +306,7 @@ class FilterCollection {
   }
 
   createFilter(filterSpec) {
-    const f = mediaFilters.get(filterSpec.name);
-    this.#filters.push(
-      m => f(m, ...filterSpec.args)
-    );
+    this.#filters.push(new Filter(filterSpec));
   }
 
   createFilters() {
@@ -265,9 +318,7 @@ class FilterCollection {
 
   filter(medias) {
     return medias.filter(
-      m => this.#filters.every(
-        f => f(m)
-      )
+      m => this.#filters.every(f => f.run(m))
     )
   }
 
@@ -277,12 +328,13 @@ class FilterCollection {
 class Game {
   #config = {
     mediaDataPath: 'media.json',
+    messageWait: 10000,
     revealWait: 5000,
     resultWait: 10000,
     resetWait: 1000,
     shortWait: 200,
     hintImagePath: 'image.jpg',
-    maxCircles: 20,
+    numCircles: 20,
     circleSizeMin: 0.02,
     circleSizeMax: 0.1,
     filters: []
@@ -293,18 +345,26 @@ class Game {
   hintImage = null;
   #currentMedia = null;
   #start = null;
-  #circles = [];
   #phase = '';
   #wait = 0;
   #mediaCollection = null;
   #nextHintListeners = [];
   #resultListeners = [];
   #resetListeners = [];
+  messages = [];
 
   constructor(options) {
+    this.setOptions(options);
+  }
+
+  setOptions(options) {
     for(const [k, v] of Object.entries(options)) {
       this.#config[k] = v;
     }
+    console.log('Game configuration modified');
+    console.group('New config');
+    console.log(JSON.stringify(this.#config, null, 2));
+    console.groupEnd();
   }
 
   async init() {
@@ -371,21 +431,39 @@ class Game {
     return;
   }
 
-  doReset() {
+  async doReset() {
     console.log('Resetting');
     const listeners = this.#resetListeners;
     this.#resetListeners = [];
     console.log(`Sending resets to ${listeners.length} players`);
-    listeners.forEach(f => f({ status: 'success' }));
-    this.newQuestion();
+    listeners.forEach(f => f(data));
+    await this.newQuestion();
     this.#phase = 'guessing';
     this.#wait = this.#config.shortWait;
     return;
   }
 
+  async doMessage(messages, errors) {
+    console.log('Sending a message');
+    this.#resetListeners.forEach(f => f(data));
+    this.#nextHintListeners.forEach(f => f(dummyImage()));
+    this.#resultListeners.forEach(f => f({}));
+    errors ??= [];
+    errors = (Array.isArray(errors)) ? errors : [ errors ]
+    messages ??= [];
+    messages = (Array.isArray(messages)) ? messages : [ messages ]
+    this.messages = [
+      ...messages.map(m => ({ text: m, classes: 'good'})),
+      ...errors.map(m => ({ text: m, classes: 'bad'}))
+    ];
+    this.#phase = 'message';
+    this.#wait = this.#config.messageWait;
+    return;
+  }
+
   async doStuff() {
     if (this.#phase == 'guessing') {
-      if (this.#circles.length >= this.#config.maxCircles) {
+      if (this.hintImage.numCircles >= this.#config.numCircles) {
         return this.doRevealAll();
       } else {
         return this.doRevealMore();
@@ -398,16 +476,27 @@ class Game {
   }
 
   async run() {
-    await this.doStuff();
+    try {
+      await this.doStuff();
+    } catch(e) {
+      if(e instanceof GameError) {
+        await this.doMessage(null, e.message);
+      } else {
+        await this.doMessage(null, 'Something unexpected happened. Restarting.');
+      }
+    }
     setTimeout(this.run.bind(this), this.#wait);
   }
 
-  newQuestion() {
+  async newQuestion() {
     this.#start = Date.now();
     const media
       = this.#currentMedia
       = this.#mediaCollection.random();
-    this.hintImage = new HintImage(media);
+    if(!media) {
+      throw new GameError('Could not load media. Maybe a configuration/filter problem?');
+    }
+    this.hintImage = new HintImage(await media.image());
     this.#answers = {};
     this.#answers['CORRECT ANSWER'] = {
       answer: media.displayAnswer,
@@ -416,7 +505,7 @@ class Game {
     }
   }
 
-  get nextHintJpegStream() {
+  async nextHintJpegStream() {
     const listeners = this.#nextHintListeners;
     return new Promise((resolve) => listeners.push(resolve));
   }
@@ -425,12 +514,12 @@ class Game {
     return this.hintImage.jpegStream;
   }
 
-  get reset() {
+  async reset() {
     const listeners = this.#resetListeners;
     return new Promise((resolve) => listeners.push(resolve));
   }
 
-  get nextResults() {
+  async nextResults() {
     const listeners = this.#resultListeners;
     return new Promise((resolve) => listeners.push(resolve));
   }
@@ -453,9 +542,11 @@ class Game {
     if(this.#phase === 'reveal') {
       return { action: 'results' };
     }
-    if(this.#phase === 'results')
-    {
+    if(this.#phase === 'results'){
       return { action: 'reset' };
+    }
+    if(this.#phase === 'message'){
+      return { action: 'message' };
     }
     return { action: 'image' };
   }
@@ -494,7 +585,7 @@ async function serve(options) {
   app.use(bodyParser.json());
   app.use('/static', express.static(path.join(__dirname, 'public')));
   app.get('/next.jpg', async (_, res) => {
-    (await game.nextHintJpegStream).pipe(res);
+    (await game.nextHintJpegStream()).pipe(res);
   });
   app.get('/current.jpg', async (_, res) => {
     (await game.hintJpegStream).pipe(res);
@@ -514,10 +605,18 @@ async function serve(options) {
     success(res);
   });
   app.get('/reset', async (_, res) => {
-    res.json(await game.reset);
+    res.json(await game.reset());
   });
   app.get('/results', async (_, res) => {
-    res.json(await game.nextResults);
+    res.json(await game.nextResults());
+  });
+  app.get('/message', async (_, res) => {
+    res.json({
+      status: success,
+      data: {
+        messages: game.messages,
+      }
+    });
   });
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
@@ -600,13 +699,13 @@ require('yargs')
           revealWait: argv.revealInterval,
           resultWait: argv.resultsTime,
           resetWait: argv.resetTime,
-          shortWait: argv.short_wait,
+          shortWait: argv.shortWait,
           hintImagePath: argv.hintImagePath,
-          maxCircles: argv.numCircles,
+          numCircles: argv.numCircles,
           circleSizeMin: argv.minCircleSize,
           circleSizeMax: argv.maxCircleSize
         },
-        filterString: argv.filters
+        filters: argv.filters
       }
     )
   })
