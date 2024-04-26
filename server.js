@@ -19,6 +19,7 @@ function normalizeString(str) {
     .toLowerCase();
 }
 
+
 function isTypeable(str) {
   if(typeof str !== 'string') { return false; }
   return true
@@ -32,95 +33,273 @@ function compare(a, b) {
 }
 
 
-function createRandomCircle(width, height, minRadius = 0, maxRadius = 1) {
-  const radiusFrac = minRadius + Math.random() * (maxRadius - minRadius);
-  const radius = radiusFrac * Math.max(width, height);
-  const x = Math.random() * (width - 2 * radius) + radius;
-  const y = Math.random() * (height - 2 * radius) + radius;
-  return { x, y, radius };
+function isValidMedia(media) {
+  if(!media) {
+    console.warning('Media does not have data');
+    return false;
+  }
+  if(!media.coverImage.extraLarge) {
+    console.warning('Media is missing image URL');
+    return false;
+  }
+  if(!(media.title.english || media.title.romaji)) {
+    console.warning('Media is missing titles');
+    return false;
+  }
+  return true;
 }
 
 
-async function coverImage(image, circles, outputPath) {
-  const canvas = blackCanvas(image.width, image.height)
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = ctx.createPattern(image, "repeat");;
-  fillCircles(ctx, circles);
-  await saveCanvas(canvas, outputPath);
-}
+mediaFilters = new Map(Object.entries({
+  popularity: (m, min, max) => min <= m.popularity <= max,
+  validMedia: isValidMedia
+}));
 
 
-async function revealImage(image, outputPath) {
-  const canvas = blackCanvas(image.width, image.height)
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = ctx.createPattern(image, "repeat");;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  await saveCanvas(canvas, outputPath);
-}
+class HintImage {
+  #circles = [];
+  #jpegStream;
+  #media;
 
+  constructor(media) {
+    this.#media = media;
+  }
 
-async function saveCanvas(canvas, path) {
-  const outputStream = require('fs').createWriteStream(path);
-  const stream = canvas.createJPEGStream();
-  stream.pipe(outputStream);
-  return new Promise((resolve, reject) => {
-    outputStream.on('finish', () => {
-      resolve();
+  createRandomCircle(width, height, minRadius = 0, maxRadius = 1) {
+    const radiusFrac = minRadius + Math.random() * (maxRadius - minRadius);
+    const radius = radiusFrac * Math.max(width, height);
+    const x = Math.random() * (width - 2 * radius) + radius;
+    const y = Math.random() * (height - 2 * radius) + radius;
+    return { x, y, radius };
+  }
+
+  async revealCircle(minRadius, maxRadius) {
+    this.#circles.push(
+      this.createRandomCircle(
+        (await this.width),
+        (await this.height),
+        minRadius,
+        maxRadius
+      )
+    );
+    this.revealCircles();
+  }
+
+  async revealCircles() {
+    const canvas = this.blackCanvas(
+      await this.width,
+      await this.height
+    );
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = ctx.createPattern(
+      await this.image,
+      "repeat"
+    );
+    this.#circles.forEach(circle => {
+      ctx.beginPath();
+      ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+      ctx.fill();
     });
-    outputStream.on('error', (err) => {
-      reject(err);
-    });
-  });
+    this.#jpegStream = canvas.createJPEGStream();
+  }
+
+  async revealAll() {
+    const canvas = blackCanvas(
+      await image.width,
+      await image.height
+    )
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = ctx.createPattern(this.image, "repeat");;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    this.#jpegStream = canvas.createJPEGStream();
+  }
+
+  blackCanvas(w, h) {
+    const canvas = createCanvas(w, h);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, w, h);
+    return canvas;
+  }
+
+  get image() {
+    return this.#media.image;
+  }
+
+  get jpegStream() {
+    return this.#jpegStream;
+  }
+
+  get width() {
+    return this.image.then(image => image.width);
+  }
+
+  get height() {
+    return this.image.then(image => image.height);
+  }
+
 }
 
 
-function blackCanvas(w, h) {
-  const canvas = createCanvas(w, h);
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'black';
-  ctx.fillRect(0, 0, w, h);
-  return canvas;
+class Media {
+
+  #image = null;
+  #data = {};
+
+  constructor(data) {
+    this.#data = data;
+  }
+
+  get answers() {
+    return [
+      this.#data.title.english,
+      this.#data.title.romaji,
+      this.#data.title.native,
+      ...(this.synonyms ?? []),
+      ...this.hashtags
+    ];
+  }
+
+  get hashtags() {
+    return (this.#data.hashtag ?? '').split(/ +/);
+  }
+
+  get normalizedCompletions() {
+    return new Map(
+      this.#data.answers.map(a => [ normalizeString(a), a ])
+    );
+  }
+
+  get displayAnswer() {
+    return [
+      this.#data.title.romaji,
+      this.#data.title.english,
+      this.#data.title.native
+    ].join(' | ');
+  }
+  
+  get image() {
+    return this.#image ??= loadImage(
+      this.#data.coverImage.extraLarge
+    );
+  }
+
 }
 
 
-function fillCircles(ctx, circles) {
-  circles.forEach(circle => {
-    ctx.beginPath();
-    ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-    ctx.fill();
-  });
+class MediaCollection {
+  #data = [];
+  #filterCollection = null;
+  #completions = null;
+  #medias = [];
+
+  constructor(mediaData) {
+    this.#data = mediaData;
+    this.createMedias(this.#data);
+  }
+
+  createMedias() {
+    var fc
+    const filteredData = (fc = this.#filterCollection) ?
+      fc.filter(this.#data)
+      : this.#data;
+    this.#medias = filteredData.map(m => new Media(m));
+    this.completions = null;
+  }
+
+  setFilters(filterCollection) {
+    this.#filterCollection = filterCollection;
+    this.createMedias();
+  }
+
+  completions() {
+    return this.#completions ??= [
+      ...new Map(
+        new Array().concat(
+          ...this.#medias.map(
+            m => [ ...m.normalizedCompletions ]
+          )
+        )
+      )
+    ];
+  }
+
+  random() {
+    return this.#medias[
+      Math.floor(
+        Math.random() * this.#medias.length
+      )
+    ];
+  }
 }
 
 
+class FilterCollection {
+  #filters = [];
+  #filterSpecs = [];
+
+  constructor(filterSpecs) {
+    this.#filterSpecs = [
+      {
+        name: 'validMedia',
+        args: []
+      },
+      ...filterSpecs
+    ];
+    this.createFilters();
+  }
+
+  createFilter(filterSpec) {
+    const f = mediaFilters.get(filterSpec.name);
+    this.#filters.push(
+      m => f(m, ...filterSpec.args)
+    );
+  }
+
+  createFilters() {
+    this.#filters = [];
+    for(const f of this.#filterSpecs) {
+      this.createFilter(f);
+    }
+  }
+
+  filter(medias) {
+    return medias.filter(
+      m => this.#filters.every(
+        f => f(m)
+      )
+    )
+  }
+
+}
 
 
 class Game {
   #config = {
-      mediaDataPath: 'media.json',
-      revealWait: 5000,
-      resultWait: 10000,
-      resetWait: 1000,
-      shortWait: 200,
-      hintImagePath: 'image.jpg',
-      maxCircles: 20,
-      circleSizeMin: 0.02,
-      circleSizeMax: 0.1
+    mediaDataPath: 'media.json',
+    revealWait: 5000,
+    resultWait: 10000,
+    resetWait: 1000,
+    shortWait: 200,
+    hintImagePath: 'image.jpg',
+    maxCircles: 20,
+    circleSizeMin: 0.02,
+    circleSizeMax: 0.1,
+    filters: []
   };
+  #mediaData = [];
   #answers = {};
   #results = {};
-  #posterIndex = null;
-  #poster = null;
-  #posterImage = null;
+  hintImage = null;
+  #currentMedia = null;
   #start = null;
   #circles = [];
-  #mediaData = exampleMediaData;
-  #posters = [];
-  #nextPhase = 'reset';
-  #resetRequests = [];
-  #imageRequests = [];
-  #resultRequests = [];
+  #phase = '';
   #wait = 0;
-  #choices = [];
+  #mediaCollection = null;
+  #nextHintListeners = [];
+  #resultListeners = [];
+  #resetListeners = [];
 
   constructor(options) {
     for(const [k, v] of Object.entries(options)) {
@@ -128,129 +307,94 @@ class Game {
     }
   }
 
-  allAnswers() {
-    return this.#posters.reduce(
-      (acc, p) => acc.push(...p.answers) && acc,
-      []
-    )
-  }
-
-  filterChoices(choices) {
-    const map = new Map();
-    const normalizedChoices = choices.map(v => normalizeString(v));
-    for(const [i, v] of normalizedChoices.entries()) {
-      if(!map.has(v)) {
-        map.set(v, i);
-      }
-    }
-    const uniqueChoices = [...new Set(normalizedChoices)]
-    const uniqueIndexes = uniqueChoices.map(v => map.get(v));
-    return uniqueIndexes.map(i => choices[i]);
-  }
-
   async init() {
-    await this.loadData();
-    let choices = this.allAnswers();
-    choices = this.filterChoices(choices);
-    this.#choices = choices;
-  }
-
-  mediaToPoster(media) {
-    const imageUrl = media.coverImage.extraLarge;
-    const answers = [
-      media.title.english,
-      media.title.romaji,
-      media.title.native,
-      ...(media.synonyms ?? []),
-      ...(media.hashtag ?? '').split(' ')
-    ];
-    const filteredAnswers = answers.filter(isTypeable);
-    return {
-      imageUrl: imageUrl,
-      answers: filteredAnswers
-    }
-  }
-
-  isValidPoster(poster) {
-      if(!poster) {
-        console.warning('Poster does not have data');
-        return false;
-      }
-      if(!poster.imageUrl) {
-        console.warning('Poster is missing image URL');
-        return false;
-      }
-      if(!poster.answers || poster.answers.length <= 0) {
-        console.warning('Poster is missing answers');
-        return false;
-      }
-    return true;
-  }
-
-  postersFromMediaData(){
-    let posters = this.#mediaData.map(this.mediaToPoster.bind(this));
-    posters = posters.filter(this.isValidPoster.bind(this));
-    return posters;
+    this.#mediaData = await this.loadData();
+    this.#mediaCollection = new MediaCollection(this.#mediaData);
+    const filterCollection = new FilterCollection(this.#config.filters);
+    this.#mediaCollection.setFilters(filterCollection);
   }
 
   async loadData() {
-    if(!this.#config.mediaDataPath) {
-      console.info('No mediaDataPath given. Using example data');
-      return;
-    }
-    try {
-      this.#mediaData = JSON.parse(
-        await fs.readFile(
-          this.#config.mediaDataPath,
-          'utf8'
-        )
+    return await fs.readFile(this.#config.mediaDataPath, 'utf8')
+      .then(JSON.parse)
+      .catch(
+        error => {
+          console.error(
+            `Could not load data from ${this.#config.mediaDataPath}.`
+            + ' Loading example data',
+            error
+          );
+          return exampleMediaData;
+        }
       );
-      this.#posters = this.postersFromMediaData();
-    } catch(error) {
-      console.error(`Could not load data from ${this.#config.mediaDataPath}`);
-    }
+  }
+
+  async doRevealAll() {
+    console.log('Revealing all');
+    await this.hintImage.revealAll();
+    const listeners = this.#nextHintListeners;
+    this.#nextHintListeners = [];
+    console.log(`Sending image to ${listeners.length} players`);
+    listeners.forEach(
+      f => f(this.hintJpegStream)
+    );
+    this.#phase = 'reveal';
+    this.#wait = this.#config.revealWait;
+    return;
+  }
+
+  async doRevealMore() {
+    console.log('Revealing more');
+    await this.hintImage.revealCircle(
+      this.#config.circleSizeMin,
+      this.#config.circleSizeMax
+    )
+    const listeners = this.#nextHintListeners;
+    this.#nextHintListeners = [];
+    console.log(`Sending image to ${listeners.length} players`);
+    listeners.forEach(f => f(this.hintJpegStream));
+    this.#wait = this.#config.revealWait;
+    return;
+  }
+
+  doResults() {
+    console.log('Showing results');
+    const results
+      = this.#results
+      = this.#answers;
+    const listeners = this.#resultListeners;
+    this.#resultListeners = [];
+    console.log(`Sending results to ${listeners.length} players`);
+    listeners.forEach(f => f(results));
+    this.#phase = 'results';
+    this.#wait = this.#config.resultWait;
+    return;
+  }
+
+  doReset() {
+    console.log('Resetting');
+    const listeners = this.#resetListeners;
+    this.#resetListeners = [];
+    console.log(`Sending resets to ${listeners.length} players`);
+    listeners.forEach(f => f({ status: 'success' }));
+    this.newQuestion();
+    this.#phase = 'guessing';
+    this.#wait = this.#config.shortWait;
+    return;
   }
 
   async doStuff() {
-    if (this.#nextPhase == 'reset') {
-      console.log('Resetting');
-      this.sendResets();
-      this.#nextPhase = 'changePoster';
-      this.#wait = this.#config.resetWait;
-      return;
+    if (this.#phase == 'guessing') {
+      if (this.#circles.length >= this.#config.maxCircles) {
+        return this.doRevealAll();
+      } else {
+        return this.doRevealMore();
+      }
     }
-    if (this.#nextPhase == 'results') {
-      console.log('Showing results');
-      this.sendResults();
-      this.#nextPhase = 'reset';
-      this.#wait = this.#config.resultWait;
-      return;
+    if (this.#phase == 'reveal') {
+      return this.doResults();
     }
-    if (this.#nextPhase == 'changePoster') {
-      console.log('Changing poster');
-      await this.newQuestion();
-      this.#nextPhase = 'guess';
-      this.#wait = this.#config.shortWait;
-      return;
-    }
-    if (this.#nextPhase == 'guess' && this.#circles.length >= this.#config.maxCircles) {
-      console.log('Revealing all');
-      await this.revealAll();
-      this.sendImages();
-      this.#nextPhase = 'results';
-      this.#wait = this.#config.revealWait;
-      return;
-    }
-    if (this.#nextPhase == 'guess' && this.#circles.length < this.#config.maxCircles) {
-      console.log('Revealing more');
-      await this.revealMore();
-      this.sendImages();
-      this.#wait = this.#config.revealWait;
-      return;
-    }
-    console.log('Weird');
-    this.#wait = this.#config.defaultWait;
-    return;
+    return this.doReset();
   }
 
   async run() {
@@ -258,93 +402,46 @@ class Game {
     setTimeout(this.run.bind(this), this.#wait);
   }
 
-  randomPosterIndex() {
-    return Math.floor(Math.random() * this.#posters.length);
-  }
-
-  async newQuestion() {
+  newQuestion() {
     this.#start = Date.now();
-    this.#posterIndex = this.randomPosterIndex();
-    this.#poster = this.#posters[this.#posterIndex];
-    this.#circles = [];
+    const media
+      = this.#currentMedia
+      = this.#mediaCollection.random();
+    this.hintImage = new HintImage(media);
     this.#answers = {};
-    this.#answers['ANSWER'] = {
-      answer: this.#poster.answers.join(' | '),
+    this.#answers['CORRECT ANSWER'] = {
+      answer: media.displayAnswer,
       correct: true,
       time: 0
-    };
-    this.#posterImage = await loadImage(this.#poster.imageUrl);
-  }
-
-  async revealMore() {
-    const image = this.#posterImage;
-    this.#circles.push(
-      createRandomCircle(
-        image.width,
-        image.height,
-        this.#config.circleSizeMin,
-        this.#config.circleSizeMax
-      )
-    );
-    await coverImage(
-      image,
-      this.#circles,
-      this.#config.hintImagePath
-    );
-  }
-
-  async revealAll() {
-    await revealImage(
-      this.#posterImage,
-      this.#config.hintImagePath
-    );
-  }
-
-  sendResets() {
-    let requests = this.#resetRequests;
-    this.#resetRequests = [];
-    console.log(`Sending reset to ${requests.length} players`);
-    requests.forEach(res => success(res));
-  }
-
-  sendImages() {
-    let requests = this.#imageRequests;
-    this.#imageRequests = [];
-    console.log(`Sending hint image to ${requests.length} players`)
-    requests.forEach(res => res.sendFile(this.#config.hintImagePath));
-  }
-
-  sendResults() {
-    this.#results = this.#answers;
-    let requests = this.#resultRequests;
-    this.#resultRequests = [];
-    console.log(`Sending results to ${requests.length} players`)
-    requests.forEach(res => res.json(this.#results));
-  }
-
-  queueImageRequest(res) {
-    this.#imageRequests.push(res);
-  }
-
-  queueResetRequest(res) {
-    if(this.#nextPhase == 'reset') {
-      this.#resetRequests.push(res);
-    } else {
-      success(res);
     }
   }
 
-  queueResultRequest(res) {
-    if(this.#nextPhase == 'results') {
-      this.#resultRequests.push(res);
-    } else {
-      res.json(this.#results);
-    }
+  get nextHintJpegStream() {
+    const listeners = this.#nextHintListeners;
+    return new Promise((resolve) => listeners.push(resolve));
+  }
+
+  get hintJpegStream() {
+    return this.hintImage.jpegStream;
+  }
+
+  get reset() {
+    const listeners = this.#resetListeners;
+    return new Promise((resolve) => listeners.push(resolve));
+  }
+
+  get nextResults() {
+    const listeners = this.#resultListeners;
+    return new Promise((resolve) => listeners.push(resolve));
+  }
+
+  get results() {
+    return this.#results;
   }
 
   submitAnswer(player, answer) {
     console.log(`Received answer from ${player}: ${answer}`);
-    const accepted = this.#posters[this.#posterIndex].answers;
+    const accepted = this.#currentMedia.answers;
     this.#answers[player] = {
       answer: answer,
       correct: accepted.some(a => compare(a, answer)),
@@ -353,24 +450,18 @@ class Game {
   }
 
   next() {
-    let action = 'reload';
-    if(this.#nextPhase == 'results') {
-      action = 'results';
+    if(this.#phase === 'reveal') {
+      return { action: 'results' };
     }
-    if(this.#nextPhase == 'reset') {
-      action = 'reset';
+    if(this.#phase === 'results')
+    {
+      return { action: 'reset' };
     }
-    if(this.#nextPhase == 'changePoster') {
-      action = 'image';
-    }
-    if(this.#nextPhase == 'guess') {
-      action = 'image';
-    }
-    return { action };
+    return { action: 'image' };
   }
 
-  choices() {
-    return this.#choices;
+  completions() {
+    return this.#mediaCollection.completions;
   }
 
 }
@@ -381,14 +472,32 @@ function success(res) {
 }
 
 
-function serve(gameOptions) {
-  const game = new Game(gameOptions);
-  game.init();
-  game.run();
+function parseFilterString(filterString) {
+  const regex = /(\w+)\(([^)]*)\);?/g;
+  let match;
+  const result = [];
+  while ((match = regex.exec(filterString)) !== null) {
+      const functionName = match[1];
+      const args = match[2].split(',').map(arg => arg.trim());
+      result.push({ name: functionName, args: args });
+  }
+  return result;
+}
+
+
+async function serve(options) {
+  const gameConfig = options.gameConfig;
+  gameConfig.filters = parseFilterString(options.filters);
+  const game = new Game(gameConfig);
+  await game.init();
+  await game.run();
   app.use(bodyParser.json());
   app.use('/static', express.static(path.join(__dirname, 'public')));
-  app.get('/image.jpg', (_, res) => {
-    game.queueImageRequest(res);
+  app.get('/next.jpg', async (_, res) => {
+    (await game.nextHintJpegStream).pipe(res);
+  });
+  app.get('/current.jpg', async (_, res) => {
+    (await game.hintJpegStream).pipe(res);
   });
   app.get('/', (_, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -396,19 +505,19 @@ function serve(gameOptions) {
   app.get('/next', (_, res) => {
     res.json(game.next());
   });
-  app.get('/choices', (_, res) => {
-    res.json(game.choices());
+  app.get('/completions', (_, res) => {
+    res.json(game.completions());
   });
   app.post('/submit', (req, res) => {
     const { nickname, answer } = req.body;
     game.submitAnswer(nickname, answer);
     success(res);
   });
-  app.get('/reset', (_, res) => {
-    game.queueResetRequest(res);
+  app.get('/reset', async (_, res) => {
+    res.json(await game.reset);
   });
-  app.get('/results', (_, res) => {
-    game.queueResultRequest(res);
+  app.get('/results', async (_, res) => {
+    res.json(await game.nextResults);
   });
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
@@ -476,19 +585,30 @@ require('yargs')
         describe: 'Place for the generated hint image',
         type: 'string'
     })
+    .option('filters', {
+        alias: 'f',
+        default: '',
+        describe: 'Add filters. Format as "filter1Name(a,b,c);filter2Name(d,e,f);..."',
+        type: 'string'
+    })
   },
   function (argv) {
-    serve({
-      mediaDataPath: argv.mediaData,
-      revealWait: argv.revealInterval,
-      resultWait: argv.resultsTime,
-      resetWait: argv.resetTime,
-      shortWait: argv.short_wait,
-      hintImagePath: argv.hintImagePath,
-      maxCircles: argv.numCircles,
-      circleSizeMin: argv.minCircleSize,
-      circleSizeMax: argv.maxCircleSize
-    })
+    serve(
+      {
+        gameConfig: {
+          mediaDataPath: argv.mediaData,
+          revealWait: argv.revealInterval,
+          resultWait: argv.resultsTime,
+          resetWait: argv.resetTime,
+          shortWait: argv.short_wait,
+          hintImagePath: argv.hintImagePath,
+          maxCircles: argv.numCircles,
+          circleSizeMin: argv.minCircleSize,
+          circleSizeMax: argv.maxCircleSize
+        },
+        filterString: argv.filters
+      }
+    )
   })
   .help()
   .parse()

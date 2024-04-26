@@ -4,18 +4,18 @@ var running = null;
 var fuse = null;
 var nextSearch = null;
 
-async function updateChoices() {
-  console.log('Updating choices');
-  const choices = await fetch('../choices')
+async function updateCompletions() {
+  console.log('Updating completions');
+  const completions = await fetch('../completions')
     .then(response => response.json())
-    .catch(error => console.error('Fetching completions failed'));
-  fuse = new Fuse(choices);
+    .catch(_ => console.error('Fetching completions failed'));
+  fuse = new Fuse(completions);
 }
 
 
 async function run() {
   if(!fuse) {
-    await updateChoices();
+    await updateCompletions();
   }
   while(nextSearch) {
     const str = nextSearch;

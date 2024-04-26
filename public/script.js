@@ -83,7 +83,7 @@ async function run(){
 
 async function fetchImage() {
   console.log('Fetching image')
-  await fetch('image.jpg')
+  await fetch('next.jpg')
     .then(getBlob)
     .then(blob => {
       const imageUrl = URL.createObjectURL(blob);
