@@ -1,5 +1,4 @@
 
-
 function normalizeString(str) {
   return str
     .normalize("NFKD")
@@ -30,7 +29,7 @@ function arrayAlmostHas(array, value) {
 
 
 function inBetween(v, a, b) {
-  return (a ?? -Infinity) <= v <= (b ?? Infinity)
+  return (a ?? -Infinity) <= v && v <= (b ?? Infinity);
 }
 
 
@@ -103,7 +102,13 @@ function nonNulls(array) {
 }
 
 function tmpRef() {
-  return Date.now().toString(36).slice(4); }
+  return Date.now().toString(36).slice(4);
+}
+
+
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 
 module.exports = {
@@ -118,6 +123,7 @@ module.exports = {
   wrap,
   indent,
   nonNulls,
-  tmpRef
+  tmpRef,
+  sleep
 }
 

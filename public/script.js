@@ -333,7 +333,7 @@ async function run(){
         reportError(error, 'Something went wrong');
         await sleep(5000);
       });
-    await sleep(250);
+    await sleep(100);
   }
 }
 

@@ -61,7 +61,7 @@ class Filter {
       {
         ref: ref,
         filter: this.info,
-        media: media.info,
+        media: media,
         pass: pass
       }
     );

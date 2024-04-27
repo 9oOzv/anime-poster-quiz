@@ -6,10 +6,11 @@ const { loadImage, createCanvas } = require('canvas');
 const fs = require('fs').promises;
 const { createContextLogger } = require('./logging.js');
 const { FilterCollection } = require('./filters.js');
-const { compare } = require('./utils.js');
+const { compare, sleep } = require('./utils.js');
 const { exampleMediaData } = require('./example-data.js');
 
 const logger = createContextLogger('server');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -48,8 +49,8 @@ class HintImage {
   async revealCircle(minRadius, maxRadius) {
     this.#circles.push(
       this.createRandomCircle(
-        (await this.width),
-        (await this.height),
+        this.width,
+        this.height,
         minRadius,
         maxRadius
       )
@@ -59,8 +60,8 @@ class HintImage {
 
   async revealCircles() {
     const canvas = this.blackCanvas(
-      await this.width,
-      await this.height
+      this.width,
+      this.height
     );
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = ctx.createPattern(
@@ -158,6 +159,10 @@ class Media {
     return this.#image ??= loadImage(
       this.#data.coverImage.extraLarge
     );
+  }
+
+  get info() {
+    return this.#data;
   }
 
 }
@@ -290,11 +295,11 @@ class Game {
     await this.hintImage.revealAll();
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
+    this.#phase = 'reveal';
     this.#logger.verbose('Sending image', { listeners: listeners.length });
     listeners.forEach(
       f => f(this.hintJpegStream)
     );
-    this.#phase = 'reveal';
     this.#wait = this.#config.revealWait;
     return;
   }
@@ -320,9 +325,9 @@ class Game {
       = this.#answers;
     const listeners = this.#resultListeners;
     this.#resultListeners = [];
+    this.#phase = 'results';
     this.#logger.verbose('Sending results', { listeners: listeners.length });
     listeners.forEach(f => f(results));
-    this.#phase = 'results';
     this.#wait = this.#config.resultWait;
     return;
   }
@@ -331,10 +336,10 @@ class Game {
     this.#logger.info('Resetting');
     const listeners = this.#resetListeners;
     this.#resetListeners = [];
+    this.#phase = 'guessing';
     this.#logger.verbose('Sending resets', { listeners: listeners.length });
     listeners.forEach(f => f());
     await this.newQuestion();
-    this.#phase = 'guessing';
     this.#wait = this.#config.shortWait;
     return;
   }
@@ -372,18 +377,31 @@ class Game {
   }
 
   async run() {
-    try {
-      await this.doStuff();
-    } catch(error) {
-      if(error instanceof GameError) {
-        this.#logger.error(error);
-        await this.doMessage(null, error.message);
-      } else {
-        this.#logger.error(error);
-        await this.doMessage(null, 'Something unexpected happened. Restarting.');
+    while(true) {
+      this.#logger.trace(
+        'Run start',
+        { phase: this.#phase }
+      );
+      try {
+        await this.doStuff();
+      } catch(error) {
+        if(error instanceof GameError) {
+          this.#logger.error(error);
+          await this.doMessage(null, error.message);
+        } else {
+          this.#logger.error(error);
+          await this.doMessage(null, 'Something unexpected happened. Restarting.');
+        }
       }
+      this.#logger.trace(
+        'Run end',
+        {
+          phase: this.#phase,
+          wait: this.#wait
+        }
+      );
+      await sleep(this.#wait);
     }
-    setTimeout(this.run.bind(this), this.#wait);
   }
 
   async newQuestion() {
@@ -394,6 +412,10 @@ class Game {
     if(!media) {
       throw new GameError('Could not load media. Maybe a configuration/filter problem?');
     }
+    this.#logger.info(
+      'Selected new poster',
+      { media: media.info }
+    )
     this.hintImage = new HintImage(await media.image());
     this.#answers = {};
     this.#answers['CORRECT ANSWER'] = {
@@ -462,7 +484,8 @@ function parseFilterString(filterString) {
   const result = [];
   while ((match = regex.exec(filterString)) !== null) {
       const functionName = match[1];
-      const args = match[2].split(',').map(arg => arg.trim());
+      const argStr = match[2];
+      args = JSON.parse(`[${argStr}]`);
       result.push({ name: functionName, args: args });
   }
   return result;
@@ -474,42 +497,86 @@ async function serve(options) {
   gameConfig.filters = parseFilterString(options.filters);
   const game = new Game(gameConfig);
   await game.init();
-  await game.run();
+  game.run();
   app.use(bodyParser.json());
   app.use('/static', express.static(path.join(__dirname, 'public')));
   app.get('/next.jpg', async (_, res) => {
-    (await game.nextHintJpegStream()).pipe(res);
+    const stream = await game.nextHintJpegStream();
+    logger.trace(
+      'Responding to `next.jpg`',
+      { typeofStream: typeof(stream) }
+    )
+    stream.pipe(res);
   });
   app.get('/current.jpg', async (_, res) => {
-    (await game.hintJpegStream).pipe(res);
+    const stream = (await game.hintJpegStream).pipe(res);
+    logger.trace(
+      'Responding to `current.jpg`',
+      { typeofStream: typeof(stream) }
+    )
   });
   app.get('/', (_, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    const indexPath = path.join(__dirname, 'public', 'index.html')
+    logger.trace(
+      'Responding to `/`',
+      { indexPath }
+    )
+    res.sendFile(indexPath);
   });
   app.get('/next', (_, res) => {
-    res.json(game.next());
+    const data = game.next();
+    logger.trace(
+      'Responding to `/next`',
+      { data }
+    )
+    res.json(data);
   });
   app.get('/completions', (_, res) => {
-    res.json(game.completions());
+    const data = game.completions();
+    logger.trace(
+      'Responding to `/completions`',
+      { data }
+    )
+    res.json(data);
   });
   app.post('/submit', (req, res) => {
     const { nickname, answer } = req.body;
     game.submitAnswer(nickname, answer);
-    res.json({ status: 'success' });
+    const data = { status: 'success' }
+    logger.trace(
+      'Responding to `/submit`',
+      { data, nickname, answer, }
+    )
+    res.json(data);
   });
   app.get('/reset', async (_, res) => {
-    res.json(await game.reset());
+    const data = await game.reset();
+    logger.trace(
+      'Responding to `/reset`',
+      { data }
+    )
+    res.json(data);
   });
   app.get('/results', async (_, res) => {
-    res.json(await game.nextResults());
+    const data = await game.nextResults();
+    logger.trace(
+      'Responding to `/results`',
+      { data }
+    )
+    res.json(data);
   });
   app.get('/message', async (_, res) => {
-    res.json({
+    const data = {
       status: 'success',
       data: {
         messages: game.messages,
       }
-    });
+    };
+    logger.trace(
+      'Responding to `/message`',
+      { data }
+    )
+    res.json(data);
   });
   app.listen(PORT, () => {
     logger.info(`Server is running`, { PORT });

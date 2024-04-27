@@ -13,7 +13,7 @@ const primaryColors = {
   notice: colors.blue,
   verbose: colors.brightWhite,
   debug: colors.white,
-  trace: colors.gray,
+  trace: colors.dim,
 }
 
 const secondaryColors = {
@@ -24,14 +24,14 @@ const secondaryColors = {
   notice: colors.white,
   verbose: colors.white,
   debug: colors.white,
-  trace: colors.gray,
+  trace: colors.dim,
 }
 
 
 
 const customFormat = {
   transform: (info) => {
-    const maxLines = 64;
+    const maxLines = 128;
     const maxLength = 2048;
     const prefix = '❱❱ ';
     const maxLineWidth = 120 - prefix.length;
@@ -52,6 +52,7 @@ const customFormat = {
     const stackText = stack && wrap(stack, maxLineWidth);
 
     const firstLine = `${level}: ${message}`;
+    functionContext = functionContext.replace(`${context}.`, '');
     const secondLine = nonNulls([timestamp, context, functionContext]).join(' ');
     const rest = nonNulls([extraText, stackText]).join('\n');
     const lines = [
@@ -118,7 +119,7 @@ function createContextLogger(context, extra) {
   function verbose(message, data) { log('verbose', message, data); }
   function debug(message, data) { log('debug', message, data); }
   function trace(message, data) { log('trace', message, data); }
-  return { debug, info, error, warning, verbose, trace };
+  return { debug, info, notice, error, warning, verbose, trace };
 }
 
 module.exports = {
