@@ -1,7 +1,7 @@
 
 
 function fetchJsonData() {
-  fetch('/configuration')
+  fetch('configuration')
   .then(response => response.json())
   .then(jsonData => {
     document.getElementById('json-area').value = JSON.stringify(jsonData, null, 2);
@@ -15,7 +15,7 @@ function submitJsonData(immediate = false) {
       config: JSON.parse(document.getElementById('json-area').value),
       immediate
   };
-  fetch('/configuration', {
+  fetch('configuration', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
