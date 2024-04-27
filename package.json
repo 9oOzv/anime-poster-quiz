@@ -2,6 +2,7 @@
   "dependencies": {
     "canvas": "^2.11.2",
     "express": "^4.19.2",
+    "winston": "^3.13.0",
     "yargs": "^17.7.2"
   }
 }

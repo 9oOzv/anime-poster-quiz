@@ -215,8 +215,7 @@ function submitAnswer() {
 
 
 async function doReset() {
-  const json = await fetch('reset')
-    .then(res => res.json());
+  const json = await fetch('reset');
   messages = [];
   compBox.innerHTML = '';
   compSelection = -1;

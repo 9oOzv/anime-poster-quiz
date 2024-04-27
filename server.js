@@ -4,12 +4,14 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const { loadImage, createCanvas } = require('canvas');
 const fs = require('fs').promises;
+const { createLogger } = require('./logging.js');
+const { FilterCollection } = require('./filters.js');
+const { compare } = require('./utils.js');
+const { exampleMediaData } = require('./example-data.js');
 
+const logger = createLogger();
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Example data from AniList API. Only mandatory attributes for the list items are: 'coverImage.extraLarge' and one or more of (title.natime, title.english, title.romaji, synonyms, hashtag). Other attributes may be used for filtering etc. in the future
-const exampleMediaData = [{"type":"ANIME","id":121,"idMal":121,"seasonYear":2003,"season":"FALL","seasonInt":34,"popularity":197705,"favourites":5028,"trending":3,"hashtag":null,"synonyms":["Full Metal Alchemist","FMA","\u05d0\u05dc\u05db\u05d9\u05de\u05d0\u05d9 \u05d4\u05de\u05ea\u05db\u05ea","Stalowy alchemik","\uac15\ucca0\uc758 \uc5f0\uae08\uc220\uc0ac","\u0e41\u0e02\u0e19\u0e01\u0e25 \u0e04\u0e19\u0e41\u0e1b\u0e23\u0e18\u0e32\u0e15\u0e38","\u92fc\u4e4b\u934a\u91d1\u8853\u5e2b","\u94a2\u4e4b\u70bc\u91d1\u672f\u5e08","\u0416\u0435\u043b\u0435\u0437\u043d\u0438\u044f\u0442 \u0410\u043b\u0445\u0438\u043c\u0438\u043a","\u0421\u0442\u0430\u043b\u0435\u0432\u0438\u0439 \u0430\u043b\u0445\u0456\u043c\u0456\u043a"],"tags":[{"id":1291,"name":"Alchemy"},{"id":29,"name":"Magic"},{"id":391,"name":"Philosophy"},{"id":85,"name":"Tragedy"},{"id":82,"name":"Male Protagonist"},{"id":34,"name":"Military"},{"id":102,"name":"Coming of Age"},{"id":56,"name":"Shounen"},{"id":111,"name":"War"},{"id":1310,"name":"Travel"},{"id":146,"name":"Alternate Universe"},{"id":1219,"name":"Disability"},{"id":639,"name":"Body Horror"},{"id":456,"name":"Conspiracy"},{"id":95,"name":"Steampunk"},{"id":774,"name":"Chimera"},{"id":198,"name":"Foreign"},{"id":324,"name":"Chibi"},{"id":801,"name":"Cyborg"},{"id":104,"name":"Anti-Hero"},{"id":1091,"name":"Religion"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx121-JUlbsyhTUNkk.png"},"genres":["Action","Adventure","Drama","Fantasy"],"averageScore":78,"meanScore":79,"title":{"native":"\u92fc\u306e\u932c\u91d1\u8853\u5e2b","romaji":"Hagane no Renkinjutsushi","english":"Fullmetal Alchemist"}},{"type":"ANIME","id":49,"idMal":49,"seasonYear":1993,"season":"WINTER","seasonInt":931,"popularity":8686,"favourites":94,"trending":0,"hashtag":null,"synonyms":["Ah! My Goddess (OVA)","Oh, mia dea!"],"tags":[{"id":253,"name":"Gods"},{"id":1045,"name":"Heterosexual"},{"id":321,"name":"Urban Fantasy"},{"id":86,"name":"Primarily Female Cast"},{"id":29,"name":"Magic"},{"id":404,"name":"College"},{"id":50,"name":"Seinen"},{"id":82,"name":"Male Protagonist"},{"id":779,"name":"Kuudere"},{"id":173,"name":"Motorcycles"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx49-jv1G7rSP4lxg.png"},"genres":["Comedy","Drama","Romance","Supernatural"],"averageScore":68,"meanScore":69,"title":{"native":"\u3042\u3042\u3063\u5973\u795e\u3055\u307e\u3063","romaji":"Aa! Megami-sama!","english":"Oh! My Goddess"}},{"type":"ANIME","id":19815,"idMal":19815,"seasonYear":2014,"season":"SPRING","seasonInt":142,"popularity":421767,"favourites":14413,"trending":5,"hashtag":"#nogenora","synonyms":["NGNL","NO GAME NO LIFE\u6e38\u620f\u4eba\u751f","\u6e38\u620f\u4eba\u751f","\u0e42\u0e19\u0e40\u0e01\u0e21 \u0e42\u0e19\u0e44\u0e25\u0e1f\u0e4c"],"tags":[{"id":244,"name":"Isekai"},{"id":91,"name":"Gambling"},{"id":146,"name":"Alternate Universe"},{"id":308,"name":"Video Games"},{"id":282,"name":"Hikikomori"},{"id":29,"name":"Magic"},{"id":82,"name":"Male Protagonist"},{"id":86,"name":"Primarily Female Cast"},{"id":98,"name":"Female Protagonist"},{"id":103,"name":"Politics"},{"id":39,"name":"Parody"},{"id":253,"name":"Gods"},{"id":1310,"name":"Travel"},{"id":779,"name":"Kuudere"},{"id":365,"name":"Memory Manipulation"},{"id":254,"name":"Kemonomimi"},{"id":1403,"name":"Class Struggle"},{"id":1419,"name":"Kingdom Management"},{"id":144,"name":"Meta"},{"id":23,"name":"Female Harem"},{"id":113,"name":"Nekomimi"},{"id":598,"name":"Elf"},{"id":100,"name":"Nudity"},{"id":66,"name":"Super Power"},{"id":1105,"name":"Judo"}],"coverImage":{"extraLarge":"https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/nx19815-bIo51RMWWhLv.jpg"},"genres":["Adventure","Comedy","Ecchi","Fantasy"],"averageScore":77,"meanScore":77,"title":{"native":"\u30ce\u30fc\u30b2\u30fc\u30e0\u30fb\u30ce\u30fc\u30e9\u30a4\u30d5","romaji":"No Game No Life","english":"No Game, No Life"}}];
 
 
 class GameError extends Error {
@@ -19,69 +21,6 @@ class GameError extends Error {
     Error.captureStackTrace(this, GameError);
   }
 }
-
-
-function normalizeString(str) {
-  return str
-    .normalize("NFKD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
-}
-
-
-function isTypeable(str) {
-  if(typeof str !== 'string') { return false; }
-  return true
-}
-
-
-function compare(a, b) {
-    const c = a.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-    const d = b.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-    return c === d;
-}
-
-
-function isValidMedia(media) {
-  if(!media) {
-    console.warning('Media does not have data');
-    return false;
-  }
-  if(!media.coverImage.extraLarge) {
-    console.warning('Media is missing image URL');
-    return false;
-  }
-  if(!(media.title.english || media.title.romaji)) {
-    console.warning('Media is missing titles');
-    return false;
-  }
-  return true;
-}
-
-
-function arrayAlmostHas(array, value) {
-  if(!Array.isArray(array)){
-    return false;
-  }
-  return array.some(v => compare(v, value));
-}
-
-
-function inBetween(v, a, b) {
-  return (a ?? -Infinity) <= v <= (b ?? Infinity)
-}
-
-
-mediaFilters = new Map(Object.entries({
-  popularity: (m, min, max) => inBetween(m.popularity, min, max),
-  favorites: (m, min, max) => inBetween(m.favorites, min, max),
-  year: (m, min, max) => inBetween(m.seasonYear, min, max),
-  sfw: (m) => m.isAdult,
-  nsfw: (m) => !m.isAdult,
-  genres: (m, ...genres) => genres.some(g => arrayAlmostHas(m.genres, g)),
-  tags: (m, ...tags) => tags.some(t => arrayAlmostHas((m.tags ?? []).map(t => t.name), t)),
-  validMedia: isValidMedia
-}));
 
 
 function dummyImage(){
@@ -271,60 +210,6 @@ class MediaCollection {
 }
 
 
-class Filter {
-
-  #name
-  #f
-  #args
-
-  constructor(filterSpec) {
-    this.#name = filterSpec.name;
-    this.#f = mediaFilters.get(filterSpec.name);
-    this.#args = filterSpec.args;
-  }
-  
-  run(media) {
-    debugger
-    this.#f(media, ...this.#args);
-  }
-}
-
-
-class FilterCollection {
-  #filters = [];
-  #filterSpecs = [];
-
-  constructor(filterSpecs) {
-    this.#filterSpecs = [
-      {
-        name: 'validMedia',
-        args: []
-      },
-      ...filterSpecs
-    ];
-    this.createFilters();
-  }
-
-  createFilter(filterSpec) {
-    this.#filters.push(new Filter(filterSpec));
-  }
-
-  createFilters() {
-    this.#filters = [];
-    for(const f of this.#filterSpecs) {
-      this.createFilter(f);
-    }
-  }
-
-  filter(medias) {
-    return medias.filter(
-      m => this.#filters.every(f => f.run(m))
-    )
-  }
-
-}
-
-
 class Game {
   #config = {
     mediaDataPath: 'media.json',
@@ -339,32 +224,35 @@ class Game {
     circleSizeMax: 0.1,
     filters: []
   };
-  #mediaData = [];
-  #answers = {};
-  #results = {};
-  hintImage = null;
-  #currentMedia = null;
-  #start = null;
-  #phase = '';
-  #wait = 0;
-  #mediaCollection = null;
-  #nextHintListeners = [];
-  #resultListeners = [];
-  #resetListeners = [];
-  messages = [];
+  #id;
+  #mediaData;
+  #answers;
+  #results;
+  hintImage;
+  #currentMedia;
+  #start;
+  #phase;
+  #wait;
+  #mediaCollection;
+  #nextHintListeners;
+  #resultListeners;
+  #resetListeners;
+  #logger;
+  messages;
 
   constructor(options) {
+    const id = Date.now().toString(36);
+    this.#logger = createLogger({ class: 'Game', gameId: id });
+    this.#id = id;
     this.setOptions(options);
   }
 
   setOptions(options) {
+    this.#logger.info('Setting game options', { options });
     for(const [k, v] of Object.entries(options)) {
       this.#config[k] = v;
     }
-    console.log('Game configuration modified');
-    console.group('New config');
-    console.log(JSON.stringify(this.#config, null, 2));
-    console.groupEnd();
+    this.#logger.debug('New config', { config: this.#config });
   }
 
   async init() {
@@ -372,6 +260,17 @@ class Game {
     this.#mediaCollection = new MediaCollection(this.#mediaData);
     const filterCollection = new FilterCollection(this.#config.filters);
     this.#mediaCollection.setFilters(filterCollection);
+    this.#mediaData = [];
+    this.#answers = {};
+    this.#results = {};
+    this.hintImage = null
+    this.#currentMedia = null;
+    this.#start = null;
+    this.#phase = '';
+    this.#wait = 0;
+    this.#nextHintListeners = [];
+    this.#resultListeners = [];
+    this.#resetListeners = [];
   }
 
   async loadData() {
@@ -379,22 +278,19 @@ class Game {
       .then(JSON.parse)
       .catch(
         error => {
-          console.error(
-            `Could not load data from ${this.#config.mediaDataPath}.`
-            + ' Loading example data',
-            error
-          );
+          this.#logger.error('Could not load data', { path: this.#config.mediaDataPath, error: error });
+          this.#logger.error('Loading example media', { exampleMediaData });
           return exampleMediaData;
         }
       );
   }
 
   async doRevealAll() {
-    console.log('Revealing all');
+    this.#logger.info('Revealing all')
     await this.hintImage.revealAll();
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
-    console.log(`Sending image to ${listeners.length} players`);
+    this.#logger.verbose('Sending image', { listeners: listeners.length });
     listeners.forEach(
       f => f(this.hintJpegStream)
     );
@@ -404,27 +300,27 @@ class Game {
   }
 
   async doRevealMore() {
-    console.log('Revealing more');
+    this.#logger.info('Revealing more')
     await this.hintImage.revealCircle(
       this.#config.circleSizeMin,
       this.#config.circleSizeMax
     )
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
-    console.log(`Sending image to ${listeners.length} players`);
+    this.#logger.verbose('Sending image', { listeners: listeners.length });
     listeners.forEach(f => f(this.hintJpegStream));
     this.#wait = this.#config.revealWait;
     return;
   }
 
   doResults() {
-    console.log('Showing results');
+    this.#logger.info('Showing results');
     const results
       = this.#results
       = this.#answers;
     const listeners = this.#resultListeners;
     this.#resultListeners = [];
-    console.log(`Sending results to ${listeners.length} players`);
+    this.#logger.verbose('Sending results', { listeners: listeners.length });
     listeners.forEach(f => f(results));
     this.#phase = 'results';
     this.#wait = this.#config.resultWait;
@@ -432,11 +328,11 @@ class Game {
   }
 
   async doReset() {
-    console.log('Resetting');
+    this.#logger.info('Resetting');
     const listeners = this.#resetListeners;
     this.#resetListeners = [];
-    console.log(`Sending resets to ${listeners.length} players`);
-    listeners.forEach(f => f(data));
+    this.#logger.verbose('Sending resets', { listeners: listeners.length });
+    listeners.forEach(f => f());
     await this.newQuestion();
     this.#phase = 'guessing';
     this.#wait = this.#config.shortWait;
@@ -444,7 +340,7 @@ class Game {
   }
 
   async doMessage(messages, errors) {
-    console.log('Sending a message');
+    this.#logger.info('Sending a message', { messages, errors });
     this.#resetListeners.forEach(f => f(data));
     this.#nextHintListeners.forEach(f => f(dummyImage()));
     this.#resultListeners.forEach(f => f({}));
@@ -478,10 +374,12 @@ class Game {
   async run() {
     try {
       await this.doStuff();
-    } catch(e) {
-      if(e instanceof GameError) {
-        await this.doMessage(null, e.message);
+    } catch(error) {
+      if(error instanceof GameError) {
+        this.#logger.error(error);
+        await this.doMessage(null, error.message);
       } else {
+        this.#logger.error(error);
         await this.doMessage(null, 'Something unexpected happened. Restarting.');
       }
     }
@@ -529,7 +427,7 @@ class Game {
   }
 
   submitAnswer(player, answer) {
-    console.log(`Received answer from ${player}: ${answer}`);
+    this.#logger.info(`Received answer`, { player, answer });
     const accepted = this.#currentMedia.answers;
     this.#answers[player] = {
       answer: answer,
@@ -555,11 +453,6 @@ class Game {
     return this.#mediaCollection.completions;
   }
 
-}
-
-
-function success(res) {
-  res.json({ status: 'success' });
 }
 
 
@@ -602,7 +495,7 @@ async function serve(options) {
   app.post('/submit', (req, res) => {
     const { nickname, answer } = req.body;
     game.submitAnswer(nickname, answer);
-    success(res);
+    res.json({ status: 'success' });
   });
   app.get('/reset', async (_, res) => {
     res.json(await game.reset());
@@ -619,9 +512,10 @@ async function serve(options) {
     });
   });
   app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    logger.info(`Server is running`, { PORT });
   });
 }
+
 
 require('yargs')
   .scriptName("anime-poster-quiz")
