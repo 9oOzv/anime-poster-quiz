@@ -84,7 +84,7 @@ const winstonLogger = winston.createLogger({
   transports: [
     new winston.transports.Console(
       {
-        level: 'trace'
+        level: 'debug'
       }
     ),
   ]
