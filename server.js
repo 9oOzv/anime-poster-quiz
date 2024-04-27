@@ -244,6 +244,7 @@ class Game {
   #resetListeners;
   #logger;
   messages;
+  #newConfig;
 
   constructor(options) {
     const id = Date.now().toString(36);
@@ -261,6 +262,8 @@ class Game {
   }
 
   async init() {
+    this.#config = this.#newConfig ?? this.#config
+    this.#newConfig = null;
     this.#mediaData = await this.loadData();
     this.#mediaCollection = new MediaCollection(this.#mediaData);
     const filterCollection = new FilterCollection(this.#config.filters);
@@ -273,9 +276,19 @@ class Game {
     this.#start = null;
     this.#phase = '';
     this.#wait = 0;
-    this.#nextHintListeners = [];
-    this.#resultListeners = [];
+    this.initListeners();
+  }
+
+  initListeners() {
+    let resetListeners = this.#resetListeners ?? [];
+    let resultListeners = this.#resultListeners ?? [];
+    let nextHintListeners = this.#nextHintListeners ?? [];
     this.#resetListeners = [];
+    this.#resultListeners = [];
+    this.#nextHintListeners = [];
+    resetListeners.forEach(f => f());
+    nextHintListeners.forEach(f => f(dummyImage()));
+    resultListeners.forEach(f => f({}));
   }
 
   async loadData() {
@@ -334,6 +347,10 @@ class Game {
 
   async doReset() {
     this.#logger.info('Resetting');
+    if(this.#newConfig) {
+      await this.init();
+      return;
+    }
     const listeners = this.#resetListeners;
     this.#resetListeners = [];
     this.#phase = 'guessing';
@@ -346,7 +363,7 @@ class Game {
 
   async doMessage(messages, errors) {
     this.#logger.info('Sending a message', { messages, errors });
-    this.#resetListeners.forEach(f => f(data));
+    this.#resetListeners.forEach(f => f());
     this.#nextHintListeners.forEach(f => f(dummyImage()));
     this.#resultListeners.forEach(f => f({}));
     errors ??= [];
@@ -475,6 +492,21 @@ class Game {
     return this.#mediaCollection.completions;
   }
 
+  get configuration() {
+    return this.#config;
+  }
+
+  async configure(config, immediate = false) {
+    this.#logger.info(
+      'Set new configuration',
+      { config, immediate }
+    )
+    this.#newConfig = config;
+    if(immediate) {
+      this.#phase = '';
+    }
+  }
+
 }
 
 
@@ -577,6 +609,36 @@ async function serve(options) {
       { data }
     )
     res.json(data);
+  });
+  app.get('/configure', (_, res) => {
+    const htmlPath = path.join(__dirname, 'public', 'config.html')
+    logger.trace(
+      'Responding to `/configure`',
+      { htmlPath }
+    )
+    res.sendFile(htmlPath);
+  });
+  app.get('/configuration', (_, res) => {
+    const config = game.configuration;
+    logger.trace(
+      'Responding to `/configuration`',
+      { config }
+    )
+    res.json(config);
+  });
+  app.post('/configuration', async (req, res) => {
+    const data = req.body;
+    logger.trace(
+      'Handling POST `/configuration`',
+      { data }
+    )
+    game.configure(data.config, data.immediate)
+      .then(() => res.json({ status: 'success' }))
+      .catch(err => {
+        logger.error('Configuration failed');
+        logger.error(err);
+        res.json({ status: 'failed', message: 'Configuration failed'});
+      });
   });
   app.listen(PORT, () => {
     logger.info(`Server is running`, { PORT });

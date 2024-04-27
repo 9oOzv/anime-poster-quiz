@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script type="text/javascript" src="./static/config.js"></script>
+    <title>Configure APQ</title>
+    <link rel="stylesheet" href="./static/styles.css">
+</head>
+<body>
+    <h1>Edit Configuration</h1>
+    <form id="json-form" action="/submit" method="POST">
+        <textarea id="json-area" name="json-area" rows="10" cols="50"></textarea><br><br>
+        <button type="button" onclick="submitJsonData()">Submit</button>
+        <button type="button" onclick="submitJsonData(true)">Immediate</button>
+        <button type="button" onclick="fetchJsonData()">Current Config</button>
+    </form>
+    <h1>Example Configuration</h1>
+<pre class='small'>
+{
+  "mediaDataPath": "media.json",
+  "messageWait": 10000,
+  "revealWait": 1000,
+  "resultWait": 1000,
+  "resetWait": 1000,
+  "shortWait": 200,
+  "hintImagePath": "/home/zo2mg/projects/animeposterquiz/public/image.jpg",
+  "numCircles": 15,
+  "circleSizeMin": 0.01,
+  "circleSizeMax": 0.2,
+  "filters": [
+    {
+      "name": "popularity",
+      "args": [
+        10000,
+        1000000
+      ]
+    },
+    {
+      "name": "favorites",
+      "args": [
+        500,
+        100000
+      ]
+    },
+    {
+      "name": "genres",
+      "args": [
+        "Scifi",
+        "Slice of Life"
+      ]
+    },
+    {
+      "name": "tags",
+      "args": [
+        "LGBTQ+ Themes",
+        "Angels"
+      ]
+    }
+  ]
+}
+</pre>
+    <h1>Default Configuration</h1>
+<pre class='small'>
+{
+  "mediaDataPath": "media.json",
+  "messageWait": 10000,
+  "revealWait": 2000,
+  "resultWait": 15000,
+  "resetWait": 1000,
+  "shortWait": 200,
+  "hintImagePath": "/home/zo2mg/projects/animeposterquiz/public/image.jpg",
+  "numCircles": 15,
+  "circleSizeMin": 0.01,
+  "circleSizeMax": 0.15,
+  "filters": [
+    {
+      "name": "popularity",
+      "args": [
+        5000,
+        9999999
+      ]
+    }
+  ]
+}
+</pre>
+</body>
+</html>

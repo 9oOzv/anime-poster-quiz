@@ -53,6 +53,10 @@ h1 {
   font-size: 1.6rem;
 }
 
+.small {
+  font-size: 0.6rem;
+}
+
 
 .page {
   min-width: 90vw;
@@ -232,3 +236,5 @@ h1 {
   gap: 1.3rem;
   padding: 1.1rem;
 }
+
+
