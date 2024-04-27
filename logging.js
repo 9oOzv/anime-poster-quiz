@@ -2,16 +2,31 @@ const { MESSAGE } = require('triple-beam');
 const winston = require('winston');
 const { format } = require('logform');
 const colors = require('@colors/colors/safe');
-const { prettyShort, wrap, indent } = require('./utils.js');
+const { prettyShort, wrap, indent, nonNulls } = require('./utils.js');
 
 
-const levelColors = {
-  info: colors.brightBlue.bold,
-  verbose: colors.brightWhite.bold,
-  debug: colors.brightCyan.bold,
-  warning: colors.brightYellow.bold,
-  error: colors.brightRed.bold
+const primaryColors = {
+  fatal: colors.red,
+  error: colors.brightRed,
+  warning: colors.brightYellow,
+  info: colors.brightBlue,
+  notice: colors.blue,
+  verbose: colors.brightWhite,
+  debug: colors.white,
+  trace: colors.gray,
 }
+
+const secondaryColors = {
+  fatal: colors.red,
+  error: colors.brightRed,
+  warning: colors.brightYellow,
+  info: colors.brightWhite,
+  notice: colors.white,
+  verbose: colors.white,
+  debug: colors.white,
+  trace: colors.gray,
+}
+
 
 
 const customFormat = {
@@ -20,41 +35,47 @@ const customFormat = {
     const maxLength = 2048;
     const prefix = '❱❱ ';
     const maxLineWidth = 120 - prefix.length;
-    var {timestamp, level, context, message, name, stack, ...rest} = info;
-    const lc = levelColors[level] ?? colors.white;
-    var restText =
+    var {timestamp, level, context, functionContext, message, name, stack, ...extra} = info;
+    const c1 = primaryColors[level] ?? colors.white;
+    const c2 = secondaryColors[level] ?? colors.white;
+    const extraText =
       prettyShort(
-        rest,
+        extra,
         maxLines,
         maxLineWidth,
         maxLength
       );
-    if(message instanceof Error) {
-      stack = message.stack;
-      message = `${message.name}: ${message.message}`;
-    } else if (name && stack) {
-      message = `${name}: ${message}`
-    }
+
+    const messageIsError = (message instanceof Error);
+    stack = messageIsError ? message.stack : stack;
+    message = messageIsError ? `${message.name}: ${message.message}` : message;
+    const stackText = stack && wrap(stack, maxLineWidth);
+
+    const firstLine = `${level}: ${message}`;
+    const secondLine = nonNulls([timestamp, context, functionContext]).join(' ');
+    const rest = nonNulls([extraText, stackText]).join('\n');
     const lines = [
-      lc(`${level}: ${message}`),
-      lc(`${timestamp} ${context}`),
-      ...restText.split('\n'),
-      ...(stack ? wrap(stack, maxLineWidth).split('\n') : [])
+      c1(firstLine),
+      c1(secondLine),
+      c2(indent(rest, c1(prefix), true))
     ];
-    var text;
-    if(stack){
-      text = lc(indent(lines.join('\n'), prefix, false));
-    } else {
-      text = indent(lines.join('\n'), lc(prefix), false);
-    }
-    info[MESSAGE] = text;
+    info[MESSAGE] = lines.join('\n');
     return info;
   }
 }
 
 
 const winstonLogger = winston.createLogger({
-  levels: winston.config.syslog.levels,
+  levels: {
+    fatal: 0,
+    error: 1,
+    warning: 2,
+    info: 3,
+    notice: 4,
+    verbose: 5,
+    debug: 6,
+    trace: 7
+  },
   format: format.combine(
     format.timestamp(),
     customFormat,
@@ -62,15 +83,21 @@ const winstonLogger = winston.createLogger({
   transports: [
     new winston.transports.Console(
       {
-        level: 'debug'
+        level: 'trace'
       }
     ),
   ]
 });
 
 
-function createLogger(extra) {
-  const logger = winstonLogger.child(extra);
+function createContextLogger(context, extra) {
+  const logger = winstonLogger.child(
+    Object.assign(
+      {},
+      { context: context },
+      extra
+    )
+  );
   function log(level, message, data = {}) {
     const re = /at ([^(]+) /g;
     e = new Error();
@@ -79,20 +106,22 @@ function createLogger(extra) {
       level,
       message,
       {
-        context: ctx ? ctx[1] : '',
+        functionContext: ctx ? ctx[1] : '',
         ...data
       }
     );
   }
-  function info(message, data) { log('info', message, data); }
   function warning(message, data) { log('warning', message, data); }
   function error(message, data) { log('error', message, data); }
-  function verbose(message, data) { log('info', message, data); }
+  function info(message, data) { log('info', message, data); }
+  function notice(message, data) { log('notice', message, data); }
+  function verbose(message, data) { log('verbose', message, data); }
   function debug(message, data) { log('debug', message, data); }
-  return { debug, info, error, warning, verbose };
+  function trace(message, data) { log('trace', message, data); }
+  return { debug, info, error, warning, verbose, trace };
 }
 
 module.exports = {
-  createLogger
+  createContextLogger
 };
 

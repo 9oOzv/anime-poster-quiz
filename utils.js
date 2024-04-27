@@ -84,6 +84,10 @@ function wrap(text, width, firstLineWidth) {
   return lines.join('\n');
 }
 
+function stringy(object) {
+  return JSON.stringify();
+}
+
 
 function indent(text, indent, indentFirstLine = true) {
   const lines = text.split('\n');
@@ -93,6 +97,13 @@ function indent(text, indent, indentFirstLine = true) {
     return lines.join(`\n${indent}`) 
   }
 }
+
+function nonNulls(array) {
+  return array.filter(v => (v ?? null) !== null);
+}
+
+function tmpRef() {
+  return Date.now().toString(36).slice(4); }
 
 
 module.exports = {
@@ -105,6 +116,8 @@ module.exports = {
   prettyShort,
   countNewlines,
   wrap,
-  indent
+  indent,
+  nonNulls,
+  tmpRef
 }
 

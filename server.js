@@ -4,12 +4,12 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const { loadImage, createCanvas } = require('canvas');
 const fs = require('fs').promises;
-const { createLogger } = require('./logging.js');
+const { createContextLogger } = require('./logging.js');
 const { FilterCollection } = require('./filters.js');
 const { compare } = require('./utils.js');
 const { exampleMediaData } = require('./example-data.js');
 
-const logger = createLogger();
+const logger = createContextLogger('server');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -242,7 +242,7 @@ class Game {
 
   constructor(options) {
     const id = Date.now().toString(36);
-    this.#logger = createLogger({ class: 'Game', gameId: id });
+    this.#logger = createContextLogger('Game', { gameId: id });
     this.#id = id;
     this.setOptions(options);
   }
@@ -505,7 +505,7 @@ async function serve(options) {
   });
   app.get('/message', async (_, res) => {
     res.json({
-      status: success,
+      status: 'success',
       data: {
         messages: game.messages,
       }

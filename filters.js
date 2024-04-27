@@ -1,4 +1,7 @@
-const { arrayAlmostHas, inBetween } = require('./utils.js');
+const { stringy, arrayAlmostHas, inBetween, tmpRef } = require('./utils.js');
+const { createContextLogger } = require('./logging.js');
+
+const logger = createContextLogger('filters')
 
 
 function isValidMedia(media) {
@@ -43,7 +46,33 @@ class Filter {
   }
   
   run(media) {
-    return this.#f(media, ...this.#args);
+    let ref = tmpRef();
+    logger.trace(
+      'Running filter',
+      { 
+        ref: ref,
+        filter: this.info,
+        media: media.info
+      }
+    );
+    const pass = this.#f(media, ...this.#args);
+    logger.trace(
+      'Filtering result',
+      {
+        ref: ref,
+        filter: this.info,
+        media: media.info,
+        pass: pass
+      }
+    );
+    return pass;
+  }
+
+  get info() {
+    return {
+      name: this.#name,
+      args: this.#args
+    }
   }
 }
 
@@ -53,6 +82,7 @@ class FilterCollection {
   #filterSpecs = [];
 
   constructor(filterSpecs) {
+    logger.debug('Constructin FilterCollection', { filterSpecs });
     this.#filterSpecs = [
       {
         name: 'validMedia',
@@ -64,6 +94,7 @@ class FilterCollection {
   }
 
   createFilter(filterSpec) {
+    logger.debug('Creating filter', { filterSpec });
     this.#filters.push(new Filter(filterSpec));
   }
 
@@ -75,10 +106,17 @@ class FilterCollection {
   }
 
   filter(medias) {
+    logger.debug('Filtering medias', { info: this.info });
     const filters = this.#filters;
     return medias.filter(
       m => filters.every(f => f.run(m))
     )
+  }
+
+  get info() {
+    return {
+      filters: this.#filters.map(f => f.info)
+    }
   }
 
 }
