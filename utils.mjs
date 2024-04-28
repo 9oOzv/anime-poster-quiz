@@ -33,9 +33,9 @@ function inBetween(v, a, b) {
 }
 
 
-function truncate(text, width) {
-  return text.width > width
-    ? `${text.slice(0, width - 3)}...`
+function truncate(text, length) {
+  return text.length > length
+    ? `${text.slice(0, length - 3)}...`
     : text;
 }
 

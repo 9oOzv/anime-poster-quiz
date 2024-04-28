@@ -9,6 +9,7 @@ async function updateCompletions() {
   const completions = await fetch('../completions')
     .then(response => response.json())
     .catch(_ => console.error('Fetching completions failed'));
+  console.log(`completions:`, completions);
   fuse = new Fuse(completions);
 }
 
@@ -21,6 +22,7 @@ async function run() {
     const str = nextSearch;
     nextSearch = null;
     const results = fuse.search(str).slice(0, 10).map(v => v.item);
+    console.log(`results: ${results}`)
     postMessage(results);
   }
   running = false;

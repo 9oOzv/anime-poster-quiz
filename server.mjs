@@ -14,7 +14,7 @@ import {
   TRACE
 } from './logging.mjs';
 import { FilterCollection } from './filters.mjs';
-import { compare, sleep } from './utils.mjs';
+import { compare, sleep, normalizeString } from './utils.mjs';
 import { exampleMediaData } from './example-data.mjs';
 import yargs from 'yargs';
 const __dirname = import.meta.dirname;
@@ -127,15 +127,16 @@ class HintImage {
 
 class Media {
 
-  #image = null;
-  #data = {};
+  #image;
+  #data;
+  #answers;
 
   constructor(data) {
     this.#data = data;
   }
 
   get answers() {
-    return [
+    return this.#answers ??= [
       this.#data.title.english,
       this.#data.title.romaji,
       this.#data.title.native,
@@ -154,7 +155,7 @@ class Media {
 
   get normalizedCompletions() {
     return new Map(
-      this.#data.answers.map(a => [ normalizeString(a), a ])
+      this.answers.map(a => [ normalizeString(a), a ])
     );
   }
 
@@ -180,23 +181,33 @@ class Media {
 
 
 class MediaCollection {
-  #data = [];
-  #filterCollection = null;
-  #completions = null;
-  #medias = [];
+
+  #id;
+  #data;
+  #filterCollection;
+  #completions;
+  #medias;
 
   constructor(mediaData) {
+    const id = Date.now().toString(36);
+    this.logger = createContextLogger('MediaCollection', { mediaCollectionId: id });
+    this.#id = id;
+    TRACE(this, 'Creating MediaCollection', { mediaData });
     this.#data = mediaData;
     this.createMedias(this.#data);
   }
 
   createMedias() {
+    INFO(this, 'Creating medias', { mediaDataLength: this.#data.length });
+    TRACE(this, 'Creating medias', {});
     var fc
     const filteredData = (fc = this.#filterCollection) ?
       fc.filter(this.#data)
       : this.#data;
+    INFO(this, 'Filtered medias', { filteredDataLength: this.#data.length });
+    TRACE(this, 'Filtered data', { filteredDataLength: filteredData.length });
     this.#medias = filteredData.map(m => new Media(m));
-    this.completions = null;
+    this.#completions = null;
   }
 
   setFilters(filterCollection) {
@@ -204,8 +215,8 @@ class MediaCollection {
     this.createMedias();
   }
 
-  completions() {
-    return this.#completions ??= [
+  generateCompletions() {
+    const completions = [
       ...new Map(
         new Array().concat(
           ...this.#medias.map(
@@ -213,7 +224,14 @@ class MediaCollection {
           )
         )
       )
-    ];
+    ].map(v => v[1]);
+    TRACE(this, 'Generated completions', { completions });
+    return completions
+  }
+
+  completions() {
+    INFO('Completions');
+    return this.#completions ??= this.generateCompletions();
   }
 
   random() {
@@ -497,7 +515,9 @@ class Game {
   }
 
   completions() {
-    return this.#mediaCollection.completions;
+    DEBUG(this, 'Completions', { });
+    TRACE(this, 'Completions', { mediaCollection: this.#mediaCollection });
+    return this.#mediaCollection.completions();
   }
 
   get configuration() {
@@ -543,67 +563,43 @@ async function serve(options) {
   app.use('/static', express.static(path.join(__dirname, 'public')));
   app.get('/next.jpg', async (_, res) => {
     const stream = await game.nextHintJpegStream();
-    logger.trace(
-      'Responding to `next.jpg`',
-      { typeofStream: typeof(stream) }
-    )
+    TRACE(logger, 'Responding to `next.jpg`', { typeofStream: typeof(stream) });
     stream.pipe(res);
   });
   app.get('/current.jpg', async (_, res) => {
     const stream = (await game.hintJpegStream).pipe(res);
-    logger.trace(
-      'Responding to `current.jpg`',
-      { typeofStream: typeof(stream) }
-    )
+    TRACE(logger, 'Responding to `current.jpg`',{ typeofStream: typeof(stream) });
   });
   app.get('/', (_, res) => {
     const indexPath = path.join(__dirname, 'public', 'index.html')
-    logger.trace(
-      'Responding to `/`',
-      { indexPath }
-    )
+    TRACE(logger, 'Responding to `/`', { indexPath });
     res.sendFile(indexPath);
   });
   app.get('/next', (_, res) => {
     const data = game.next();
-    logger.trace(
-      'Responding to `/next`',
-      { data }
-    )
+    TRACE(logger, 'Responding to `/next`', { data });
     res.json(data);
   });
   app.get('/completions', (_, res) => {
     const data = game.completions();
-    logger.trace(
-      'Responding to `/completions`',
-      { data }
-    )
+    TRACE(logger, 'Responding to `/completions`', { data });
     res.json(data);
   });
   app.post('/submit', (req, res) => {
     const { nickname, answer } = req.body;
     game.submitAnswer(nickname, answer);
     const data = { status: 'success' }
-    logger.trace(
-      'Responding to `/submit`',
-      { data, nickname, answer, }
-    )
+    TRACE(logger, 'Responding to `/submit`', { data, nickname, answer, });
     res.json(data);
   });
   app.get('/reset', async (_, res) => {
     const data = await game.reset();
-    logger.trace(
-      'Responding to `/reset`',
-      { data }
-    )
+    TRACE(logger, 'Responding to `/reset`', { data });
     res.json(data);
   });
   app.get('/results', async (_, res) => {
     const data = await game.nextResults();
-    logger.trace(
-      'Responding to `/results`',
-      { data }
-    )
+    TRACE(logger, 'Responding to `/results`', { data });
     res.json(data);
   });
   app.get('/message', async (_, res) => {
@@ -613,34 +609,22 @@ async function serve(options) {
         messages: game.messages,
       }
     };
-    logger.trace(
-      'Responding to `/message`',
-      { data }
-    )
+    TRACE(logger, 'Responding to `/message`', { data });
     res.json(data);
   });
   app.get('/configure', (_, res) => {
     const htmlPath = path.join(__dirname, 'public', 'config.html')
-    logger.trace(
-      'Responding to `/configure`',
-      { htmlPath }
-    )
+    TRACE(logger, 'Responding to `/configure`', { htmlPath });
     res.sendFile(htmlPath);
   });
   app.get('/configuration', (_, res) => {
     const config = game.configuration;
-    logger.trace(
-      'Responding to `/configuration`',
-      { config }
-    )
+    TRACE(logger, 'Responding to `/configuration`', { config });
     res.json(config);
   });
   app.post('/configuration', async (req, res) => {
     const data = req.body;
-    logger.trace(
-      'Handling POST `/configuration`',
-      { data }
-    )
+    TRACE(logger, 'Handling POST `/configuration`', { data });
     game.configure(data.config, data.immediate)
       .then(() => res.json({ status: 'success' }))
       .catch(err => {

@@ -59,7 +59,7 @@ function createElement(element, classes, children, textContent) {
   }
   return e;
 }
-
+ 
 function replaceContent(element, children, textContent) {
   children ??= [];
   if(!Array.isArray(children)) {
@@ -144,7 +144,7 @@ function createCompletionItem(text) {
     answerInput.value = text;
     compBox.innerHTML = '';
   });
-  compBox.appendChild(item);
+  return item;
 }
 
 
@@ -155,6 +155,7 @@ async function updateCompletions() {
 
 
 worker.onmessage = (e) => {
+  console.log(e);
   replaceContent(
     compBox,
     e.data.map(createCompletionItem)
@@ -290,10 +291,10 @@ function initKeyboard() {
     var items = compBox.querySelectorAll('div');
     if (event.key === 'ArrowDown') {
       compSelection = Math.min(compSelection + 1, items.length - 1);
-      updateSelected(items);
+      updateSelectedCompletion(items);
     } else if (event.key === 'ArrowUp') {
       compSelection = Math.max(compSelection - 1, -1);
-      updateSelected(items);
+      updateSelectedCompletion(items);
     } else if (event.key === 'Enter') {
       if (compSelection == -1) {
         submitAnswer();

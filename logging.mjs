@@ -4,6 +4,7 @@ import { format } from 'logform';
 import colors from '@colors/colors/safe.js';
 import {truncate, wrap, indent} from './utils.mjs';
 
+const LOGGING_LEVEL = process.env.TRACE ? 'trace' : process.env.DEBUG ? 'debug' : 'notice';
 
 const primaryColors = {
   fatal: colors.red,
@@ -13,8 +14,8 @@ const primaryColors = {
   notice: colors.blue,
   verbose: colors.brightWhite,
   debug: colors.dim,
-    trace: colors.gray,
-    }
+  trace: colors.gray,
+}
 
 const secondaryColors = {
   fatal: colors.red,
@@ -122,7 +123,7 @@ const winstonLogger = winston.createLogger({
   transports: [
     new winston.transports.Console(
       {
-        level: 'debug'
+        level: LOGGING_LEVEL ?? 'notice'
       }
     ),
   ]
