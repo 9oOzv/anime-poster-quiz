@@ -45,21 +45,6 @@ function countNewlines(text) {
 }
 
 
-function prettyShort(text, maxLines, maxLineWidth, maxLength) {
-  const pretty = wrap(JSON.stringify(text, null, 2), maxLineWidth) ;
-  if(countNewlines(pretty) < maxLines) {
-    return pretty;
-  }
-  return truncate(
-    wrap(
-      JSON.stringify(text)
-      , maxLineWidth
-    ),
-    maxLength
-  );
-}
-
-
 function wrap(text, width, firstLineWidth) {
   var lines = text.split('\n');
   if(lines.length > 1){
@@ -83,13 +68,9 @@ function wrap(text, width, firstLineWidth) {
   return lines.join('\n');
 }
 
-function stringy(object) {
-  return JSON.stringify();
-}
-
 
 function indent(text, indent, indentFirstLine = true) {
-  const lines = text.split('\n');
+  const lines = text?.split('\n');
   if(indentFirstLine) {
     return `${indent}${lines.join(`\n${indent}`)}`;
   } else {
@@ -97,9 +78,11 @@ function indent(text, indent, indentFirstLine = true) {
   }
 }
 
+
 function nonNulls(array) {
   return array.filter(v => (v ?? null) !== null);
 }
+
 
 function tmpRef() {
   return Date.now().toString(36).slice(4);
@@ -111,14 +94,13 @@ async function sleep(ms) {
 }
 
 
-module.exports = {
+export {
   normalizeString,
   isTypeable,
   compare,
   arrayAlmostHas,
   inBetween,
   truncate,
-  prettyShort,
   countNewlines,
   wrap,
   indent,

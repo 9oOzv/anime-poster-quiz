@@ -1,13 +1,23 @@
-
-const express = require('express');
-const path = require('path');
-const bodyParser = require('body-parser');
-const { loadImage, createCanvas } = require('canvas');
-const fs = require('fs').promises;
-const { createContextLogger } = require('./logging.js');
-const { FilterCollection } = require('./filters.js');
-const { compare, sleep } = require('./utils.js');
-const { exampleMediaData } = require('./example-data.js');
+import express from 'express';
+import path from 'path';
+import bodyParser from 'body-parser';
+import { loadImage, createCanvas } from 'canvas';
+import { promises as fs } from 'fs';
+import {
+  createContextLogger,
+  ERROR,
+  WARNING,
+  INFO,
+  NOTICE,
+  VERBOSE,
+  DEBUG,
+  TRACE
+} from './logging.mjs';
+import { FilterCollection } from './filters.mjs';
+import { compare, sleep } from './utils.mjs';
+import { exampleMediaData } from './example-data.mjs';
+import yargs from 'yargs';
+const __dirname = import.meta.dirname;
 
 const logger = createContextLogger('server');
 
@@ -27,6 +37,7 @@ class GameError extends Error {
 function dummyImage(){
     return createCanvas(10, 10).createJPEGStream();
 }
+
 
 
 class HintImage {
@@ -217,7 +228,6 @@ class MediaCollection {
 
 class Game {
   #config = {
-    mediaDataPath: 'media.json',
     messageWait: 10000,
     revealWait: 5000,
     resultWait: 10000,
@@ -228,6 +238,9 @@ class Game {
     circleSizeMin: 0.02,
     circleSizeMax: 0.1,
     filters: []
+  };
+  #adminConfig = {
+    mediaDataPath: 'media.json'
   };
   #id;
   #mediaData;
@@ -246,19 +259,21 @@ class Game {
   messages;
   #newConfig;
 
-  constructor(options) {
+  constructor(adminConfig, gameConfig) {
+    DEBUG(this, 'Creating new game', { adminConfig, gameConfig });
     const id = Date.now().toString(36);
-    this.#logger = createContextLogger('Game', { gameId: id });
+    this.logger = createContextLogger('Game', { gameId: id });
     this.#id = id;
-    this.setOptions(options);
+    this.adminConfig = adminConfig;
+    this.setGameConfig(gameConfig);
   }
 
-  setOptions(options) {
-    this.#logger.info('Setting game options', { options });
-    for(const [k, v] of Object.entries(options)) {
+  setGameConfig(config) {
+    INFO(this, 'Setting game options', { config });
+    for(const [k, v] of Object.entries(config)) {
       this.#config[k] = v;
     }
-    this.#logger.debug('New config', { config: this.#config });
+    DEBUG(this,'New config', { config: this.#config });
   }
 
   async init() {
@@ -292,24 +307,24 @@ class Game {
   }
 
   async loadData() {
-    return await fs.readFile(this.#config.mediaDataPath, 'utf8')
+    return await fs.readFile(this.#adminConfig.mediaDataPath, 'utf8')
       .then(JSON.parse)
       .catch(
         error => {
-          this.#logger.error('Could not load data', { path: this.#config.mediaDataPath, error: error });
-          this.#logger.error('Loading example media', { exampleMediaData });
+          ERROR(this, 'Could not load data', { path: this.#adminConfig.mediaDataPath, error: error });
+          ERROR(this, 'Loading example media', { exampleMediaData });
           return exampleMediaData;
         }
       );
   }
 
   async doRevealAll() {
-    this.#logger.info('Revealing all')
+    INFO(this, 'Revealing all')
     await this.hintImage.revealAll();
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
     this.#phase = 'reveal';
-    this.#logger.verbose('Sending image', { listeners: listeners.length });
+    VERBOSE(this, 'Sending image', { listeners: listeners.length });
     listeners.forEach(
       f => f(this.hintJpegStream)
     );
@@ -318,35 +333,35 @@ class Game {
   }
 
   async doRevealMore() {
-    this.#logger.info('Revealing more')
+    INFO(this, 'Revealing more')
     await this.hintImage.revealCircle(
       this.#config.circleSizeMin,
       this.#config.circleSizeMax
     )
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
-    this.#logger.verbose('Sending image', { listeners: listeners.length });
+    VERBOSE(this, 'Sending image', { listeners: listeners.length });
     listeners.forEach(f => f(this.hintJpegStream));
     this.#wait = this.#config.revealWait;
     return;
   }
 
   doResults() {
-    this.#logger.info('Showing results');
+  INFO(this, 'Showing results');
     const results
       = this.#results
       = this.#answers;
     const listeners = this.#resultListeners;
     this.#resultListeners = [];
     this.#phase = 'results';
-    this.#logger.verbose('Sending results', { listeners: listeners.length });
+    VERBOSE(this, 'Sending results', { listeners: listeners.length });
     listeners.forEach(f => f(results));
     this.#wait = this.#config.resultWait;
     return;
   }
 
   async doReset() {
-    this.#logger.info('Resetting');
+    INFO(this, 'Resetting');
     if(this.#newConfig) {
       await this.init();
       return;
@@ -354,7 +369,7 @@ class Game {
     const listeners = this.#resetListeners;
     this.#resetListeners = [];
     this.#phase = 'guessing';
-    this.#logger.verbose('Sending resets', { listeners: listeners.length });
+    VERBOSE(this, 'Sending resets', { listeners: listeners.length });
     listeners.forEach(f => f());
     await this.newQuestion();
     this.#wait = this.#config.shortWait;
@@ -362,7 +377,7 @@ class Game {
   }
 
   async doMessage(messages, errors) {
-    this.#logger.info('Sending a message', { messages, errors });
+    INFO(this, 'Sending a message', { messages, errors });
     this.#resetListeners.forEach(f => f());
     this.#nextHintListeners.forEach(f => f(dummyImage()));
     this.#resultListeners.forEach(f => f({}));
@@ -393,30 +408,23 @@ class Game {
     return this.doReset();
   }
 
-  async run() {
-    while(true) {
-      this.#logger.trace(
-        'Run start',
-        { phase: this.#phase }
-      );
-      try {
-        await this.doStuff();
-      } catch(error) {
+
+  async doError(error) {
         if(error instanceof GameError) {
-          this.#logger.error(error);
+          ERROR(this, error);
           await this.doMessage(null, error.message);
         } else {
-          this.#logger.error(error);
+          ERROR(this, error);
           await this.doMessage(null, 'Something unexpected happened. Restarting.');
         }
-      }
-      this.#logger.trace(
-        'Run end',
-        {
-          phase: this.#phase,
-          wait: this.#wait
-        }
-      );
+  }
+
+  async run() {
+    while(true) {
+      TRACE(this, 'Run start', { phase: this.#phase });
+      await this.doStuff()
+        .catch(error => doError(error));
+      TRACE(this, 'Run end', { phase: this.#phase, wait: this.#wait } );
       await sleep(this.#wait);
     }
   }
@@ -429,7 +437,7 @@ class Game {
     if(!media) {
       throw new GameError('Could not load media. Maybe a configuration/filter problem?');
     }
-    this.#logger.info(
+    INFO(this, 
       'Selected new poster',
       { media: media.info }
     )
@@ -466,7 +474,7 @@ class Game {
   }
 
   submitAnswer(player, answer) {
-    this.#logger.info(`Received answer`, { player, answer });
+    INFO(this, `Received answer`, { player, answer });
     const accepted = this.#currentMedia.answers;
     this.#answers[player] = {
       answer: answer,
@@ -497,7 +505,7 @@ class Game {
   }
 
   async configure(config, immediate = false) {
-    this.#logger.info(
+    INFO(this, 
       'Set new configuration',
       { config, immediate }
     )
@@ -517,7 +525,7 @@ function parseFilterString(filterString) {
   while ((match = regex.exec(filterString)) !== null) {
       const functionName = match[1];
       const argStr = match[2];
-      args = JSON.parse(`[${argStr}]`);
+      const args = JSON.parse(`[${argStr}]`);
       result.push({ name: functionName, args: args });
   }
   return result;
@@ -526,8 +534,9 @@ function parseFilterString(filterString) {
 
 async function serve(options) {
   const gameConfig = options.gameConfig;
+  const adminConfig = options.adminConfig;
   gameConfig.filters = parseFilterString(options.filters);
-  const game = new Game(gameConfig);
+  const game = new Game(adminConfig, gameConfig);
   await game.init();
   game.run();
   app.use(bodyParser.json());
@@ -646,7 +655,7 @@ async function serve(options) {
 }
 
 
-require('yargs')
+yargs(process.argv.slice(2))
   .scriptName("anime-poster-quiz")
   .usage('$0 <cmd> [args]')
   .command('serve', 'Serve', (yargs) => {
@@ -717,8 +726,10 @@ require('yargs')
   function (argv) {
     serve(
       {
+        adminConfig: {
+          mediaDataPath: argv.mediaData
+        },
         gameConfig: {
-          mediaDataPath: argv.mediaData,
           revealWait: argv.revealInterval,
           resultWait: argv.resultsTime,
           resetWait: argv.resetTime,
@@ -734,3 +745,4 @@ require('yargs')
   })
   .help()
   .parse()
+

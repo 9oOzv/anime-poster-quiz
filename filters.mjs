@@ -1,5 +1,5 @@
-const { stringy, arrayAlmostHas, inBetween, tmpRef } = require('./utils.js');
-const { createContextLogger } = require('./logging.js');
+import { arrayAlmostHas, inBetween, tmpRef } from './utils.mjs';
+import { createContextLogger } from './logging.mjs';
 
 const logger = createContextLogger('filters')
 
@@ -21,7 +21,7 @@ function isValidMedia(media) {
 }
 
 
-mediaFilters = new Map(Object.entries({
+const mediaFilters = new Map(Object.entries({
   popularity: (m, min, max) => inBetween(m.popularity, min, max),
   favorites: (m, min, max) => inBetween(m.favorites, min, max),
   year: (m, min, max) => inBetween(m.seasonYear, min, max),
@@ -122,7 +122,7 @@ class FilterCollection {
 }
 
 
-module.exports = {
+export {
   mediaFilters,
   Filter,
   FilterCollection
