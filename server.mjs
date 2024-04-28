@@ -251,7 +251,6 @@ class Game {
     resultWait: 10000,
     resetWait: 1000,
     shortWait: 200,
-    hintImagePath: 'image.jpg',
     numCircles: 20,
     circleSizeMin: 0.02,
     circleSizeMax: 0.1,
@@ -695,11 +694,6 @@ yargs(process.argv.slice(2))
         describe: 'Number of circles to reveal',
         type: 'number'
     })
-    .option('hint-image-path', {
-        default: path.join(__dirname, 'public', 'image.jpg'),
-        describe: 'Place for the generated hint image',
-        type: 'string'
-    })
     .option('filters', {
         alias: 'f',
         default: '',
@@ -718,7 +712,6 @@ yargs(process.argv.slice(2))
           resultWait: argv.resultsTime,
           resetWait: argv.resetTime,
           shortWait: argv.shortWait,
-          hintImagePath: argv.hintImagePath,
           numCircles: argv.numCircles,
           circleSizeMin: argv.minCircleSize,
           circleSizeMax: argv.maxCircleSize
