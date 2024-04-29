@@ -440,7 +440,7 @@ class Game {
     while(true) {
       TRACE(this, 'Run start', { phase: this.#phase });
       await this.doStuff()
-        .catch(error => doError(error));
+        .catch(error => this.doError(error));
       TRACE(this, 'Run end', { phase: this.#phase, wait: this.#wait } );
       await sleep(this.#wait);
     }

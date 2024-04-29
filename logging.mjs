@@ -45,8 +45,8 @@ const objectMessageFormat = {
   transform: ({message, ...rest}) =>
     ({
       message:
-        (messageIsError = message instanceof Error) ? `${message.name}: ${message.message}` :
-        (messageIsObject = typeof message === 'object') ? `Log message` :
+        (message instanceof Error) ? `${message.name}: ${message.message}` :
+        (typeof message === 'object') ? `Log message` :
         message,
       ...rest
     })
@@ -60,7 +60,6 @@ const restFormat = {
     const limitCharacters = 2048;
     var text = wrap(JSON.stringify(rest, null, 2), limitWidth);
     const nLines = text.split(/\r\n|\r|\n/).length;
-    var extra
     if(nLines > limitLines) {
       text = truncate(
         wrap(
@@ -115,10 +114,10 @@ const winstonLogger = winston.createLogger({
   },
   format: format.combine(
     format.timestamp(),
+    objectMessageFormat,
     stackFormat,
     restFormat,
     customFormat,
-    //format.prettyPrint()
   ),
   transports: [
     new winston.transports.Console(

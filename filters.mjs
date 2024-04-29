@@ -23,7 +23,7 @@ function isValidMedia(media) {
 
 const mediaFilters = new Map(Object.entries({
   popularity: (m, min, max) => inBetween(m.popularity, min, max),
-  favorites: (m, min, max) => inBetween(m.favorites, min, max),
+  favourites: (m, min, max) => inBetween(m.favourites, min, max),
   year: (m, min, max) => inBetween(m.seasonYear, min, max),
   sfw: (m) => m.isAdult,
   nsfw: (m) => !m.isAdult,

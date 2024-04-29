@@ -15,65 +15,62 @@
         <button type="button" onclick="fetchJsonData()">Current Config</button>
     </form>
     <h1>Example Configuration</h1>
-<pre class='small'>
+<pre class="small">
 {
   "messageWait": 10000,
   "revealWait": 1000,
-  "resultWait": 1000,
+  "resultWait": 10000,
   "resetWait": 1000,
   "shortWait": 200,
-  "numCircles": 15,
-  "circleSizeMin": 0.01,
+  "numCircles": 5,
+  "circleSizeMin": 0.1,
   "circleSizeMax": 0.2,
   "filters": [
     {
       "name": "popularity",
       "args": [
         10000,
-        1000000
+        9999999
       ]
     },
     {
-      "name": "favorites",
+      "name": "favourites",
       "args": [
         500,
-        100000
+        9999999
       ]
     },
     {
       "name": "genres",
       "args": [
-        "Scifi",
         "Slice of Life"
       ]
     },
     {
       "name": "tags",
       "args": [
-        "LGBTQ+ Themes",
-        "Angels"
+        "LGBTQ+ Themes"
       ]
     }
   ]
 }
 </pre>
     <h1>Default Configuration</h1>
-<pre class='small'>
+<pre class="small">
 {
   "messageWait": 10000,
-  "revealWait": 2000,
-  "resultWait": 15000,
+  "revealWait": 1000,
+  "resultWait": 1000,
   "resetWait": 1000,
   "shortWait": 200,
-  "numCircles": 15,
-  "circleSizeMin": 0.01,
-  "circleSizeMax": 0.15,
+  "numCircles": 20,
+  "circleSizeMin": 0.1,
+  "circleSizeMax": 0.2,
   "filters": [
     {
       "name": "popularity",
       "args": [
-        5000,
-        9999999
+        5000
       ]
     }
   ]
