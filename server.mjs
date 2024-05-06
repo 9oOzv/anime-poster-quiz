@@ -22,7 +22,6 @@ const __dirname = import.meta.dirname;
 const logger = createContextLogger('server');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 
 class GameError extends Error {
@@ -552,10 +551,11 @@ function parseFilterString(filterString) {
 
 
 async function serve(options) {
-  const gameConfig = options.gameConfig;
-  const adminConfig = options.adminConfig;
-  gameConfig.filters = parseFilterString(options.filters);
-  const game = new Game(adminConfig, gameConfig);
+  options.gameConfig.filters = parseFilterString(options.filters);
+  const game = new Game(
+    options.adminConfig,
+    options.gameConfig
+  );
   await game.init();
   game.run();
   app.use(bodyParser.json());
@@ -632,8 +632,8 @@ async function serve(options) {
         res.json({ status: 'failed', message: 'Configuration failed'});
       });
   });
-  app.listen(PORT, () => {
-    logger.info(`Server is running`, { PORT });
+  app.listen(options.port, () => {
+    logger.info(`Server is running`, { port: options.port });
   });
 }
 
@@ -642,7 +642,13 @@ yargs(process.argv.slice(2))
   .scriptName("anime-poster-quiz")
   .usage('$0 <cmd> [args]')
   .command('serve', 'Serve', (yargs) => {
-    yargs.option('md', {
+    yargs.option('p', {
+        alias: 'port',
+        default: process.env.PORT ?? 3000,
+        describe: 'Data from AniList',
+        type: 'string'
+    })
+    yargs.option('d', {
         alias: 'media-data',
         default: 'media.json',
         describe: 'Data from AniList',

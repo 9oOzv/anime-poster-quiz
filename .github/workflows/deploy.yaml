@@ -1,0 +1,58 @@
+name: Deployment Workflow
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+
+jobs:
+  deploy:
+      runs-on: ubuntu-latest
+      environment: ${{ github.ref_name }}
+      steps:
+        - name: checkout
+          uses: actions/checkout@v4
+        - name: deploy
+          run: |
+            set -euo pipefail
+            printf '%s' "$SSH_PRIVATE_KEY" >"$SSH_KEY_PATH"
+            printf '%s' "$SSH_KNOWN_HOSTS" >"$KNOWN_HOSTS_PATH"
+            sudo chmod 600 "$SSH_KEY_PATH"
+            envs=( 
+              DEPLOY_PATH
+              DEPLOY_PORT
+              GIT_URL
+              GIT_REF
+              SERVICE_NAME
+            )
+            ssh_env=()
+            for e in "${envs[@]}"; do
+              ssh_env+=( "$(printf '%s=%q' "$e" "${!e}")" )
+            done
+            ssh_cmd=(
+              ssh
+              -o UserKnownHostsFile="$KNOWN_HOSTS_PATH"
+              -i "$SSH_KEY_PATH"
+              -p "$SSH_PORT"
+              "$SSH_USER@$SSH_HOST"
+              "${ssh_env[@]}"
+              bash
+            )
+            cat "$DEPLOY_SH" | "${ssh_cmd[@]}"
+          shell: bash
+          env:
+            SSH_HOST: ${{ secrets.SSH_HOST }}
+            SSH_PORT: ${{ secrets.SSH_PORT }}
+            SSH_USER: ${{ secrets.SSH_USER }}
+            SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+            SSH_KEY_PATH: ${{ github.workspace }}/../private.key
+            KNOWN_HOSTS_PATH: ${{ github.workspace }}/../known_hosts
+            DEPLOY_SH: ${{ github.workspace }}/deploy.sh
+            DEPLOY_SH_URL: ${{ vars.DEPLOY_SH_URL }}
+            DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+            DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+            GIT_URL: ${{ secrets.GIT_URL }}
+            GIT_REF: ${{ secrets.GIT_REF }}
+            SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
