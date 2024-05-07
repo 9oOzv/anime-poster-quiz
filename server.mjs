@@ -551,6 +551,7 @@ function parseFilterString(filterString) {
 
 
 async function serve(options) {
+  DEBUG(logger, 'Serve option', { options });
   options.gameConfig.filters = parseFilterString(options.filters);
   const game = new Game(
     options.adminConfig,
@@ -648,7 +649,7 @@ yargs(process.argv.slice(2))
         describe: 'Data from AniList',
         type: 'string'
     })
-    yargs.option('d', {
+    .option('d', {
         alias: 'media-data',
         default: 'media.json',
         describe: 'Data from AniList',
