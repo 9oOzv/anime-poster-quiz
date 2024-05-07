@@ -551,7 +551,7 @@ function parseFilterString(filterString) {
 
 
 async function serve(options) {
-  DEBUG(logger, 'Serve option', { options });
+  DEBUG(logger, 'Serve options', { options });
   options.gameConfig.filters = parseFilterString(options.filters);
   const game = new Game(
     options.adminConfig,
@@ -723,7 +723,8 @@ yargs(process.argv.slice(2))
           circleSizeMin: argv.minCircleSize,
           circleSizeMax: argv.maxCircleSize
         },
-        filters: argv.filters
+        filters: argv.filters,
+        port: argv.port
       }
     )
   })
