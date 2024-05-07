@@ -16,8 +16,8 @@ jobs:
         - name: deploy
           run: |
             set -euo pipefail
-            printf '%s' "$SSH_PRIVATE_KEY" >"$SSH_KEY_PATH"
-            printf '%s' "$SSH_KNOWN_HOSTS" >"$KNOWN_HOSTS_PATH"
+            printf '%s\n' "$SSH_PRIVATE_KEY" >"$SSH_KEY_PATH"
+            printf '%s\n' "$SSH_KNOWN_HOSTS" >"$KNOWN_HOSTS_PATH"
             sudo chmod 600 "$SSH_KEY_PATH"
             envs=( 
               DEPLOY_PATH
