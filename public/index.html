@@ -2,22 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
     <script type="text/javascript" src="./static/script.js"></script>
     <title>Anime Poster Quiz</title>
     <link rel="stylesheet" href="./static/styles.css">
     <link rel="icon" href="./static/favicon.ico">
 </head>
-<body class='column center nowrap'>
+<body>
     <div class='page column nowrap'>
-        <div class='row center title'>
+        <div class='title'>
             <h1>Anime Poster Quiz</h1>
         </div>
-        <div class='fill column f1 gap2'>
-            <div id="content-box" class='big-tile f8 box'>
+        <div class='body column gap2'>
+            <div id="content-box" class='big-tile box'>
                 <!-- CONTENT -->
             </div>
-            <div id="controls-box" class='tile f1 column nowrap gap2 pad2 box'>
+            <div id="controls-box" class='tile column nowrap gap2 pad2 box'>
                 <div class='column nowrap gap'>
                     <label class='' for="nickname-input">Nickname</label>
                     <input class='' type="text" id="nickname-input" name="nickname-input">
@@ -28,13 +29,11 @@
                     <button class='' type="button" onclick="submitAnswer()">Submit</button>
                 </div>
             </div>
-            <div class='tile column f8 gap2'>
-                <div id="completion-box" class='f1 column pad box'>
-                    <!-- COMPLETIONS -->
-                </div>
-                <div id="status-box" class='f1 column gap pad box'>
-                    <!-- STATUS MESSAGE -->
-                </div>
+            <div id="completion-box" class='tile column pad box'>
+                <!-- COMPLETIONS -->
+            </div>
+            <div id="status-box" class='tile column gap pad box'>
+                <!-- STATUS MESSAGE -->
             </div>
         </div>
     </div>
