@@ -634,7 +634,7 @@ async function serve(options) {
       });
   });
   app.listen(options.port, () => {
-    logger.info(`Server is running`, { port: options.port });
+    INFO(logger, `Server is running`, { port: options.port });
   });
 }
 

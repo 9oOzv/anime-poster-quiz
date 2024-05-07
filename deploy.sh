@@ -8,6 +8,7 @@ After=network.target
 
 [Service]
 Type=simple
+Environment="DEBUG=1"
 WorkingDirectory=$DEPLOY_PATH
 ExecStart=/usr/bin/node server.mjs serve -p "$DEPLOY_PORT"
 Restart=on-failure
