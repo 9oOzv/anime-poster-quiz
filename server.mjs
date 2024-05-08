@@ -720,6 +720,7 @@ yargs(process.argv.slice(2))
     })
   },
   function (argv) {
+    DEBUG(logger, 'Command line arguments', argv)
     serve(
       {
         adminConfig: {
