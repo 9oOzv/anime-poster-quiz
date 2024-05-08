@@ -59,4 +59,4 @@ jobs:
             SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
             MEDIA_DATA_PATH: ${{ secrets.MEDIA_DATA_PATH }}
             FETCH_MEDIA_DATA: ${{ secrets.FETCH_DATA }}
-            NO_MEDIA_DATA: ${{ secrets.FETCH_DATA }}
+            NO_MEDIA_DATA: ${{ secrets.NO_MEDIA_DATA }}
