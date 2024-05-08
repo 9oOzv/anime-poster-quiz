@@ -26,6 +26,9 @@ jobs:
               GIT_URL
               GIT_REF
               SERVICE_NAME
+              NO_MEDIA_DATA
+              MEDIA_DATA_PATH
+              FETCH_MEDIA_DATA
             )
             ssh_env=()
             for e in "${envs[@]}"; do
