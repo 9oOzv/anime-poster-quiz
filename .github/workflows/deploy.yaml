@@ -56,3 +56,6 @@ jobs:
             GIT_URL: ${{ secrets.GIT_URL }}
             GIT_REF: ${{ secrets.GIT_REF }}
             SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+            MEDIA_DATA_PATH: ${{ secrets.MEDIA_DATA_PATH }}
+            FETCH_MEDIA_DATA: ${{ secrets.FETCH_DATA }}
+            NO_MEDIA_DATA: ${{ secrets.FETCH_DATA }}

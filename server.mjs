@@ -323,6 +323,11 @@ class Game {
   }
 
   async loadData() {
+    const mediaDataPath = this.#adminConfig.mediaDataPath;
+    if (!mediaDataPath) {
+      NOTICE(this, 'Loading example media', { exampleMediaData });
+      return exampleMediaData;
+    }
     return await fs.readFile(this.#adminConfig.mediaDataPath, 'utf8')
       .then(JSON.parse)
       .catch(
@@ -643,32 +648,38 @@ yargs(process.argv.slice(2))
   .scriptName("anime-poster-quiz")
   .usage('$0 <cmd> [args]')
   .command('serve', 'Serve', (yargs) => {
-    yargs.option('p', {
-        alias: 'port',
+    yargs.option('port', {
+        alias: 'p',
         default: process.env.PORT ?? 3000,
         describe: 'Data from AniList',
         type: 'string'
     })
-    .option('d', {
-        alias: 'media-data',
+    .option('media-data', {
+        alias: 'd',
         default: 'media.json',
         describe: 'Data from AniList',
         type: 'string'
     })
-    .option('ri', {
-        alias: 'reveal-interval',
+    .option('no-media-data', {
+        alias: 'nd',
+        default: false,
+        describe: 'Do not load media data from file',
+        type: 'boolean'
+    })
+    .option('reveal-interval', {
+        alias: 'ri',
         default: 5000,
         describe: 'Poster reveal interval in milliseconds',
         type: 'number'
     })
-    .option('rt', {
-        alias: 'results-time',
+    .option('results-time', {
+        alias: 'rt',
         default: 10000,
         describe: 'Result screen time in milliseconds',
         type: 'number'
     })
-    .option('reset', {
-        alias: 'reset-time',
+    .option('reset-time', {
+        alias: 'reset',
         default: 1000,
         describe: 'Additional wait between results and "reset". Not very important',
         type: 'number'
@@ -683,20 +694,20 @@ yargs(process.argv.slice(2))
         describe: 'Just another wait to be used when there is no other appropriate setting',
         type: 'number'
     })
-    .option('min-cs', {
-        alias: 'min-circle-size',
+    .option('min-circle-size', {
+        alias: 'min-cs',
         default: 0.01,
         describe: 'Minimum reveal circle radius. As a fraction of max(<image width>, <image height>)',
         type: 'number'
     })
-    .option('max-cs', {
-        alias: 'max-circle-size',
+    .option('max-circle-size', {
+        alias: 'max-cs',
         default: 0.1,
         describe: 'Minimum reveal circle radius. As a fraction of max(<image width>, <image height>)',
         type: 'number'
     })
-    .option('nc', {
-        alias: 'num-circles',
+    .option('num-circles', {
+        alias: 'nc',
         default: 10,
         describe: 'Number of circles to reveal',
         type: 'number'
@@ -712,7 +723,7 @@ yargs(process.argv.slice(2))
     serve(
       {
         adminConfig: {
-          mediaDataPath: argv.mediaData
+          mediaDataPath: argv.noMediaData ? null : argv.mediaData
         },
         gameConfig: {
           revealWait: argv.revealInterval,
@@ -724,7 +735,8 @@ yargs(process.argv.slice(2))
           circleSizeMax: argv.maxCircleSize
         },
         filters: argv.filters,
-        port: argv.port
+        port: argv.port,
+        noMediaData: argv.noMediaData
       }
     )
   })
