@@ -280,7 +280,7 @@ class Game {
     const id = Date.now().toString(36);
     this.logger = createContextLogger('Game', { gameId: id });
     this.#id = id;
-    this.adminConfig = adminConfig;
+    this.#adminConfig = adminConfig;
     this.setGameConfig(gameConfig);
   }
 
