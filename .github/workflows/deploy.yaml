@@ -26,7 +26,7 @@ jobs:
               GIT_URL
               GIT_REF
               SERVICE_NAME
-              NO_MEDIA_DATA
+              DUMMY_MEDIA_DATA
               MEDIA_DATA_PATH
               FETCH_MEDIA_DATA
             )
@@ -62,4 +62,4 @@ jobs:
             SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
             MEDIA_DATA_PATH: ${{ secrets.MEDIA_DATA_PATH }}
             FETCH_MEDIA_DATA: ${{ secrets.FETCH_DATA }}
-            NO_MEDIA_DATA: ${{ secrets.NO_MEDIA_DATA }}
+            DUMMY_MEDIA_DATA: ${{ secrets.DUMMY_MEDIA_DATA }}

@@ -660,10 +660,10 @@ yargs(process.argv.slice(2))
         describe: 'Data from AniList',
         type: 'string'
     })
-    .option('no-media-data', {
-        alias: 'nd',
+    .option('dummy-media-data', {
+        alias: 'dd',
         default: false,
-        describe: 'Do not load media data from file',
+        describe: 'Use dummy media data instead of loading from file',
         type: 'boolean'
     })
     .option('reveal-interval', {
@@ -724,7 +724,7 @@ yargs(process.argv.slice(2))
     serve(
       {
         adminConfig: {
-          mediaDataPath: argv.noMediaData ? null : argv.mediaData
+          mediaDataPath: argv.dummyMediaData ? null : argv.mediaData
         },
         gameConfig: {
           revealWait: argv.revealInterval,
@@ -737,7 +737,6 @@ yargs(process.argv.slice(2))
         },
         filters: argv.filters,
         port: argv.port,
-        noMediaData: argv.noMediaData
       }
     )
   })
