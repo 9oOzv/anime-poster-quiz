@@ -317,7 +317,7 @@ function initAutofill() {
 function init() {
   compBox = document.getElementById("completion-box");
   statusBox = document.getElementById('status-box');
-  contentBox = document.getElementById('content-box');
+  contentBox = document.getElementById('contents-box');
   answerInput = document.getElementById("answer-input");
   nickInput = document.getElementById('nickname-input');
   initAutofill();
