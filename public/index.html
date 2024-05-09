@@ -10,30 +10,29 @@
     <link rel="icon" href="./static/favicon.ico">
 </head>
 <body>
-    <div class='page column nowrap'>
+    <div class='page nowrap'>
         <div class='title'>
             <h1>Anime Poster Quiz</h1>
         </div>
-        <div class='body column gap2'>
-            <div id="content-box" class='big-tile box'>
+        <div class='body'>
+            <div id="content-box" class='box'>
                 <!-- CONTENT -->
             </div>
-            <div id="controls-box" class='tile column nowrap gap2 pad2 box'>
-                <div class='column nowrap gap'>
-                    <label class='' for="nickname-input">Nickname</label>
-                    <input class='' type="text" id="nickname-input" name="nickname-input">
-                    <label class='' for="answer-input">Answer</label>
-                    <input class='' type="text" id="answer-input" name="answer-input">
-                </div>
-                <div class='column nowrap gap'>
-                    <button class='' type="button" onclick="submitAnswer()">Submit</button>
+            <div id="control-box" class='box'>
+                <label for="answer-input">Answer</label>
+                <input class='' type="text" id="answer-input" name="answer-input">
+                <button type="button" onclick="submitAnswer()">Submit</button>
+                <div id="completion-box" class='box'>
+                    <!-- COMPLETIONS -->
                 </div>
             </div>
-            <div id="completion-box" class='tile column pad box'>
-                <!-- COMPLETIONS -->
+            <div id="content-box" class='hidden box'>
+                <label class='f1' for="nickname-input">Nickname</label>
             </div>
-            <div id="status-box" class='tile column gap pad box'>
-                <!-- STATUS MESSAGE -->
+            <div class='hidden box'>
+                <input class='' type="text" id="nickname-input" name="nickname-input">
+            </div>
+            <div id="status-box" class='hidden box'>
             </div>
         </div>
     </div>

@@ -8,54 +8,25 @@
 }
 
 :root {
-  font-size: max(1vw, 1vh);
+  font-size: max(max(1vh, 1vh), 25%);
+  --small: 2rem;
+  --normal: 4rem;
+  --big: 5rem;
+  --bigger: 6rem;
+  --biggest: 8rem;
+  --huge: 12rem;
+  --gigantic: 18rem;
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  font-family: hack, monospace;
-  font-weight: 700;
-  background: rgb(5, 5, 5);
-  color: white;
-  font-weight: 700;
-  height: 100vh;
-  width: 100vw
+.hidden {
+  display: none;
 }
 
-.page {
-  width: 100%;
-  height: 100%;
-}
 
-h1 {
-  font-size: 3rem;
-  width: 100%;
-}
 
-.title {
-  height: 20%;
-  width: 100%;
-}
-
-.body {
-  height: 80%;
-  width: 100%;
-}
-
-.column {
-  display: flex;
-  flex-flow: column wrap;
-}
-
-.nowrap {
-  flex-wrap: nowrap;
-}
 
 button {
-  height: 2.2rem;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font: inherit;
   background-color: rgb(0, 20, 30);
   border-radius: 0;
   border: 0.2rem solid rgba(255, 255, 255, 0.7);
@@ -69,7 +40,7 @@ button:hover {
 }
 
 input {
-  height: 3rem;
+  font: inherit;
   background-color: rgb(0, 0, 0);
   border-radius: 0;
   border: 0.2rem solid rgba(255, 255, 255, 0.7);
@@ -77,78 +48,77 @@ input {
 }
 
 label {
-  height: 2rem;
-  font-size: 1.5rem;
+  font: inherit;
+  text-align: center;
 }
 
-.small {
-  font-size: 1rem;
-}
-
-
-
-.title {
-  height: 4rem;
-}
-
-.tile {
-  width: 35rem;
-  height: 17.5rem;
-}
-
-.big-tile {
-  width: 35rem;
-  height: 17.5rem;
-}
-
-#controls-box label {
-  align-self: center;
+body {
+  height: 100vh;
+  width: 100vw;
+  /* */
+  font-size: var(--normal);
+  margin: 0;
+  padding: 0;
+  font-family: hack, monospace;
+  font-weight: 700;
+  background: rgb(5, 5, 5);
+  color: white;
+  font-weight: 700;
 }
 
 
 
 
-.f1 {
+.page {
+  width: 100%;
+  height: 100%;
+  /* */
+  display: flex;
+  flex-flow: column nowrap;
+  align-items: stretch;
+}
+
+h1 {
+  /* */
+  font-size: var(--bigger);
+  margin: 0;
+  text-align: center;
+}
+
+.body {
   flex: 1;
+  /* */
+  display: flex;
+  flex-flow: row wrap;
 }
 
-.f2 {
-  flex: 2;
+#content-box {
+  min-height: min(30rem, 100%);
+  min-width: min(50rem, 100%);
+  /* */
+  flex: 1
 }
 
-.f4 {
-  flex: 4;
+
+#control-box {
+  flex: 1;
+  min-width: 40rem;
+  min-height: 0;
+  /* */
+  display: flex;
+  flex-flow: column nowrap;
 }
 
-.f8 {
-  flex: 16;
+
+#completion-box {
+  flex: 1;
+  min-height: 30rem;
+  /* */
+  display: flex;
+  flex-flow: column nowrap;
 }
 
-.pad,
-.pad1 {
-  padding: 0.4rem;
-}
 
-.pad2 {
-  padding: 1.1rem;
-}
-
-.pad3 {
-  padding: 1.6rem;
-}
-
-.gap,
-.gap1 {
-  gap: 0.6rem;
-}
-
-.gap2 {
-  gap: 1.3rem;
-}
-
-.gap3 {
-  gap: 2rem;
-}
 
 
 
@@ -156,8 +126,6 @@ label {
 .box {
   background: rgba(10, 10, 10, 0.8);
   border: 0.4rem dashed rgba(255, 255, 255, 0.1);
-  box-shadow:
-    0.6rem 0.6rem rgba(0, 0, 0, 0.85);
 }
  
 .good {
@@ -172,6 +140,11 @@ label {
 
 
 
+
+
+
+
+
 .image {
   object-fit: contain;
   width: 100%;
@@ -180,27 +153,20 @@ label {
 
 .completion-item {
   flex: 1;
-  font-size: 1rem;
-  padding: 0.3rem;
   min-width: 0;
   min-height: 0;
   background: rgba(0, 0, 0, 0.1);
-  box-shadow: 0.1rem 0.1rem rgba(0, 0, 0, 0.85);
 }
 
 .selected {
   background: rgba(255, 255, 255, 0.1);
   border: 0.2rem dashed rgba(255, 255, 255, 0.2);
-  box-shadow:
-    0.2rem 0.2rem rgba(0, 0, 0, 0.85);
 }
 
 .result-box {
   display: flex;
   flex-flow: column nowrap;
   align-items: stretch;
-  padding: 2rem;
-  gap: 0.6rem;
 }
 
 .result-line {
@@ -208,26 +174,10 @@ label {
   flex-flow: row nowrap;
   align-items: stretch;
   justify-content: space-between;
-  gap: 0.6rem;
 }
 
 .result-line>* {
   text-align: center;
   flex: 1;
 }
-
-
-.message-box {
-  display: flex;
-  flex-flow: column nowrap;
-  justify-content: center;
-  align-items: center;
-  min-width: 0;
-  min-height: 0;
-  width: 100%;
-  height: 100%;
-  gap: 1.3rem;
-  padding: 1.1rem;
-}
-
 
