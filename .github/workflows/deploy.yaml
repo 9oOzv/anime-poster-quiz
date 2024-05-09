@@ -1,21 +1,15 @@
 name: Deployment Workflow
 
-on:
-  push:
-    branches:
-      - master
-      - dev
-  workflow_dispatch:
+on: [ pull_request ]
 
 jobs:
   deploy:
       runs-on: ubuntu-latest
       environment: ${{ github.ref_name }}
       steps:
-        - name: checkout
-          uses: actions/checkout@v4
         - name: deploy
           run: |
+            printf 'This should not be run'
             set -euo pipefail
             printf '%s\n' "$SSH_PRIVATE_KEY" >"$SSH_KEY_PATH"
             printf '%s\n' "$SSH_KNOWN_HOSTS" >"$KNOWN_HOSTS_PATH"
