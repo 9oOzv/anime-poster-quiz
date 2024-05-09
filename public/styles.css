@@ -78,6 +78,28 @@ body {
   align-items: stretch;
 }
 
+.top {
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+}
+
+.menu {
+  flex: 1;
+}
+
+.title {
+  flex: 10;
+}
+
+.completion-checkbox {
+  flex: 1;
+  font-size: var(--small);
+  /* */
+  display: flex;
+  flex-flow: row;
+}
+
 h1 {
   /* */
   font-size: var(--bigger);

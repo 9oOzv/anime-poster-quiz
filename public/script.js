@@ -5,7 +5,9 @@ var contentBox = null;
 var compBox = null;
 var answerDatalist = null;
 var compSelection = -1;
+var completionTypeCheckbox = null;
 var image = null;
+var setCompletionsFunction = null;
 
 const worker = new Worker('static/worker.js', { type: "module" });
 
@@ -166,16 +168,32 @@ async function updateCompletions() {
 }
 
 
+function setCompletionBoxItems(texts) {
+    replaceContent(answerDatalist, null, '');
+    replaceContent(compBox, texts.map(createCompletionItem));
+}
+
+function setCompletionDatalistOptions(texts) {
+    replaceContent(compBox, null, '');
+    replaceContent(answerDatalist, texts.map(createCompletionOption));
+}
+
 worker.onmessage = (e) => {
   console.log(e);
-  replaceContent(
-    compBox,
-    e.data.map(createCompletionItem)
-  )
-  replaceContent(
-    answerDatalist,
-    e.data.map(createCompletionOption)
-  )
+  setCompletionsFunction(e.data);
+}
+
+
+function setCompletionType(native) {
+  if (native) {
+    compBox.style.display = 'none';
+    deinitKeyboard();
+    setCompletionsFunction = setCompletionDatalistOptions;
+  } else {
+    setCompletionsFunction = setCompletionBoxItems;
+    compBox.style.display = 'flex';
+    initKeyboard();
+  }
 }
 
 
@@ -302,8 +320,7 @@ async function doStuff(data) {
 }
 
 
-function initKeyboard() {
-  answerInput.addEventListener("keydown", function(event) {
+function onKeyDown(event) {
     var items = compBox.querySelectorAll('div');
     if (event.key === 'ArrowDown') {
       compSelection = Math.min(compSelection + 1, items.length - 1);
@@ -320,11 +337,27 @@ function initKeyboard() {
         compSelection = -1;
       }
     }
-  });
 }
 
 
-function initAutofill() {
+function initKeyboard() {
+  answerInput.addEventListener("keydown", onKeyDown);
+}
+
+
+function deinitKeyboard() {
+  answerInput.removeEventListener("keydown", onKeyDown);
+}
+
+
+function initCompletion() {
+  setCompletionType(completionTypeCheckbox.checked);
+  completionTypeCheckbox.addEventListener(
+    'change',
+    function() {
+      setCompletionType(this.checked);
+    }
+  );
   answerInput.addEventListener("input", updateCompletions);
   initKeyboard();
 }
@@ -335,14 +368,15 @@ function init() {
   statusBox = document.getElementById('status-box');
   contentBox = document.getElementById('contents-box');
   answerDatalist = document.getElementById('answer-datalist');
+  completionTypeCheckbox = document.getElementById('completion-type-checkbox');
   answerInput = document.getElementById("answer-input");
   nickInput = document.getElementById('nickname-input');
-  initAutofill();
+  initCompletion();
   run();
 }
 
 
-async function run(){
+async function run() {
   while(true) {
     await fetch('next')
       .then(getJson)
