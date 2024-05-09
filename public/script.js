@@ -3,6 +3,7 @@ var nickInput = null;
 var statusBox = null;
 var contentBox = null;
 var compBox = null;
+var answerDatalist = null;
 var compSelection = -1;
 var image = null;
 
@@ -148,6 +149,17 @@ function createCompletionItem(text) {
 }
 
 
+function createCompletionOption(text) {
+  const item = createElement(
+    'option',
+    'completion-option',
+    null,
+    text
+  )
+  return item;
+}
+
+
 async function updateCompletions() {
   preAutofillInput = answerInput.value;
   worker.postMessage(answerInput.value);
@@ -159,6 +171,10 @@ worker.onmessage = (e) => {
   replaceContent(
     compBox,
     e.data.map(createCompletionItem)
+  )
+  replaceContent(
+    answerDatalist,
+    e.data.map(createCompletionOption)
   )
 }
 
@@ -318,6 +334,7 @@ function init() {
   compBox = document.getElementById("completion-box");
   statusBox = document.getElementById('status-box');
   contentBox = document.getElementById('contents-box');
+  answerDatalist = document.getElementById('answer-datalist');
   answerInput = document.getElementById("answer-input");
   nickInput = document.getElementById('nickname-input');
   initAutofill();

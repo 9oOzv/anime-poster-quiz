@@ -20,7 +20,9 @@
             </div>
             <div id="control-box" class='box'>
                 <label for="answer-input">Answer</label>
-                <input class='' type="text" id="answer-input" name="answer-input">
+                <input class='' list='answer-datalist' type="text" id="answer-input" name="answer-input">
+                <datalist id="answer-datalist">
+                </datalist>
                 <button type="button" onclick="submitAnswer()">Submit</button>
                 <div id="completion-box" class='box'>
                     <!-- COMPLETIONS -->
