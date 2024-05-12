@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html id='root' lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
@@ -9,41 +9,47 @@
     <link rel="stylesheet" href="./static/styles.css">
     <link rel="icon" href="./static/favicon.ico">
 </head>
-<body>
-    <div class='page nowrap'>
-        <div class='top'>
-            <div class='menu'>
+<body id='body' class='column nowrap center nospill'>
+    <div id='app' class='column nowrap nospill'>
+        <div id='app-header' class='f1 row center nowrap nospill'>
+            <button id='menu-button' onclick='toggleMenu()' class='f1 biggest' style='padding: 1rem 2.2rem' >
                 
-            </div>
-            <div class='title'>
+            </button>
+            <div id='title' class='f16'>
                 <h1>Anime Poster Quiz</h1>
             </div>
-            <div class='completion-checkbox'>
-                <label for="completion-type-checkbox">Use native autocomlete</label>
-                <input type="checkbox" id="completion-type-checkbox" name="completion-type-checkbox" value="Native autovomplete">
-            </div>
         </div>
-        <div class='body'>
-            <div id="content-box" class='box'>
+        <div id='app-main' class='f16 column nospill'>
+            <div id="app-content" class='f16 box'>
                 <!-- CONTENT -->
             </div>
-            <div id="control-box" class='box'>
-                <label for="answer-input">Answer</label>
+            <div id="app-controls" class='f1 box column nowrap'>
+                <label for="answer-input" style='padding-top: 0;'>Answer</label>
                 <input class='' list='answer-datalist' type="text" id="answer-input" name="answer-input">
                 <datalist id="answer-datalist">
                 </datalist>
                 <button type="button" onclick="submitAnswer()">Submit</button>
-                <div id="completion-box" class='box'>
+                <div id="completions" class="f1">
                     <!-- COMPLETIONS -->
                 </div>
             </div>
-            <div id="content-box" class='hidden box'>
+            <div class='hidden box'>
                 <label class='f1' for="nickname-input">Nickname</label>
             </div>
             <div class='hidden box'>
                 <input class='' type="text" id="nickname-input" name="nickname-input">
             </div>
-            <div id="status-box" class='hidden box'>
+            <div id="app-status" class='hidden box'>
+            </div>
+        </div>
+        <div id="menu" class='hidden column box'>
+            <div id='completion-checkbox' class='f1 row nowrap'>
+                <label for="completion-type-checkbox">Use native autocomplete</label>
+                    <input type="checkbox" id="completion-type-checkbox" name="completion-type-checkbox" onclick="updateCompletionType()" value="Native autovomplete">
+            </div>
+            <div id='layout-selection' class='f1 row nowrap'>
+                <label for="responsive-checkbox">Use responsive layout</label>
+                <input type="checkbox" id="responsive-checkbox" name="responsive-checkbox" onclick="updateLayoutType()" value="Responsive layout">
             </div>
         </div>
     </div>

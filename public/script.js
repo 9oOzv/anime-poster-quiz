@@ -1,13 +1,32 @@
 var answerInput = null;
 var nickInput = null;
-var statusBox = null;
-var contentBox = null;
-var compBox = null;
+var appStatus = null;
+var appContent = null;
+var completions = null;
 var answerDatalist = null;
 var compSelection = -1;
 var completionTypeCheckbox = null;
+var responsiveCheckbox = true;
 var image = null;
 var setCompletionsFunction = null;
+var prevViewId = null;
+var currentViewId = null;
+var initialViewId = null;
+var responsiveLayout = true;
+
+const responsiveIds = [
+  "root",
+  "body",
+  "app"
+]
+
+const viewIds = [
+  "app-main",
+  "menu"
+]
+
+var responsiveElements = null;
+var viewElements = null;
 
 const worker = new Worker('static/worker.js', { type: "module" });
 
@@ -35,7 +54,7 @@ async function sleep(ms) {
 
 
 function reload() {
-  console.log('Reloading page')
+  console.log('Reloading app')
   location.reload();
 }
 
@@ -78,7 +97,7 @@ function replaceContent(element, children, textContent) {
 
 function showMessages(messages) {
   replaceContent(
-    contentBox,
+    appContent,
     messages.map(
       m => createElement(
         'div',
@@ -106,8 +125,8 @@ function statusMessage(msg, classes) {
 
 function addStatus(msg, classes) {
   const message = statusMessage(msg, classes);
-  statusBox.appendChild(message);
-  setTimeout(() => statusBox.removeChild(message), 10000);
+  appStatus.appendChild(message);
+  setTimeout(() => appStatus.removeChild(message), 10000);
 }
 
 
@@ -118,10 +137,10 @@ function reportSuccess(msg) {
 
 function reportError(error, msg) {
   if(msg) {
-    console.trace(msg, error)
+    console.warn(msg, error)
     addStatus(msg, 'bad');
   } else {
-    console.trace(error)
+    console.warn(error)
     addStatus(error, 'bad');
   }
 }
@@ -145,7 +164,7 @@ function createCompletionItem(text) {
   )
   item.addEventListener('click', function() {
     answerInput.value = text;
-    compBox.innerHTML = '';
+    completions.innerHTML = '';
   });
   return item;
 }
@@ -168,13 +187,13 @@ async function updateCompletions() {
 }
 
 
-function setCompletionBoxItems(texts) {
+function setCompletionItems(texts) {
     replaceContent(answerDatalist, null, '');
-    replaceContent(compBox, texts.map(createCompletionItem));
+    replaceContent(completions, texts.map(createCompletionItem));
 }
 
 function setCompletionDatalistOptions(texts) {
-    replaceContent(compBox, null, '');
+    replaceContent(completions, null, '');
     replaceContent(answerDatalist, texts.map(createCompletionOption));
 }
 
@@ -186,12 +205,12 @@ worker.onmessage = (e) => {
 
 function setCompletionType(native) {
   if (native) {
-    compBox.style.display = 'none';
+    completions.style.display = 'none';
     deinitKeyboard();
     setCompletionsFunction = setCompletionDatalistOptions;
   } else {
-    setCompletionsFunction = setCompletionBoxItems;
-    compBox.style.display = 'flex';
+    setCompletionsFunction = setCompletionItems;
+    completions.style.display = 'flex';
     initKeyboard();
   }
 }
@@ -252,9 +271,9 @@ function submitAnswer() {
 async function doReset() {
   const json = await fetch('reset');
   messages = [];
-  compBox.innerHTML = '';
+  completions.innerHTML = '';
   compSelection = -1;
-  contentBox.innerHTML = '';
+  appMain.innerHTML = '';
   image = null;
 }
 
@@ -278,7 +297,7 @@ async function doNextImage() {
         image = createElement('img', 'image');
         image.src = imageUrl;
         image.alt = 'hint';
-        replaceContent(contentBox, image);
+        replaceContent(appContent, image);
       }
     });
 }
@@ -291,7 +310,7 @@ async function doResults() {
     .then(results => {
       const lines = resultLines(results);
       replaceContent(
-        contentBox,
+        appContent,
         createElement(
           'div',
           'result-box',
@@ -321,7 +340,7 @@ async function doStuff(data) {
 
 
 function onKeyDown(event) {
-    var items = compBox.querySelectorAll('div');
+    var items = completions.querySelectorAll('div');
     if (event.key === 'ArrowDown') {
       compSelection = Math.min(compSelection + 1, items.length - 1);
       updateSelectedCompletion(items);
@@ -333,7 +352,7 @@ function onKeyDown(event) {
         submitAnswer();
       } else {
         answerInput.value = items[compSelection].textContent;
-        compBox.innerHTML = '';
+        completions.innerHTML = '';
         compSelection = -1;
       }
     }
@@ -352,23 +371,91 @@ function deinitKeyboard() {
 
 function initCompletion() {
   setCompletionType(completionTypeCheckbox.checked);
-  completionTypeCheckbox.addEventListener(
-    'change',
-    function() {
-      setCompletionType(this.checked);
-    }
-  );
   answerInput.addEventListener("input", updateCompletions);
   initKeyboard();
 }
 
+function updateCompletionType() {
+  setCompletionType(completionTypeCheckbox.checked);
+}
+
+function updateLayoutType() {
+  setResponsive(responsiveCheckbox.checked);
+}
+
+function setResponsive(responsive) {
+  if (responsive) {
+    responsiveElements.forEach(e => e.classList.add('responsive'));
+  } else {
+    responsiveElements.forEach(e => e.classList.remove('responsive'));
+  }
+}
+
+function setHidden(element, hidden) {
+  console.log('setHidden', element, hidden);
+  if(hidden) {
+    element.classList.add('hidden')
+  } else {
+    element.classList.remove('hidden')
+  }
+}
+
+function setView(viewId, fallback = initialViewId) {
+  let viewWasSet = false;
+  for(const e of viewElements) {
+    setHidden(e, true);
+  }
+  for(const e of viewElements) {
+    if(e.id === viewId) {
+      prevViewId = currentViewId;
+      currentViewId = viewId;
+      setHidden(e, false);
+      viewWasSet = true;
+    } 
+  }
+  if(!viewWasSet && fallback) {
+    setView(fallback, false);
+  }
+}
+
+
+function toggleView(viewId) {
+  if(viewId === currentViewId) {
+    setView(prevViewId, currentViewId);
+  } else {
+    setView(viewId, currentViewId)
+  }
+}
+
+function toggleMenu() {
+  toggleView('menu');
+}
+
+function toggleResponsiveLayout() {
+  if(responsiveLayout) {
+    responsiveElements.foreach(e => e.classList.remove('responsive'))
+  } else {
+    responsiveElements.foreach(e => e.classList.add('responsive'))
+  }
+}
+
+
 
 function init() {
-  compBox = document.getElementById("completion-box");
-  statusBox = document.getElementById('status-box');
-  contentBox = document.getElementById('contents-box');
+  responsiveElements = responsiveIds.map(id => document.getElementById(id));
+  viewElements = viewIds.map(id => document.getElementById(id));
+  prevViewId
+    = currentViewId
+    = initialViewId
+    = viewElements.find(e => !e.classList.contains('hidden')).id;
+  setResponsive(true);
+  menuView = document.getElementById("menu");
+  completions = document.getElementById("completions");
+  appStatus = document.getElementById('app-status');
+  appContent = document.getElementById('app-content');
   answerDatalist = document.getElementById('answer-datalist');
   completionTypeCheckbox = document.getElementById('completion-type-checkbox');
+  responsiveCheckbox = document.getElementById('responsive-checkbox');
   answerInput = document.getElementById("answer-input");
   nickInput = document.getElementById('nickname-input');
   initCompletion();
@@ -383,7 +470,7 @@ async function run() {
       .then(doStuff)
       .catch(async error => {
         reportError(error, 'Something went wrong');
-        await sleep(5000);
+        await sleep(1000);
       });
     await sleep(100);
   }
