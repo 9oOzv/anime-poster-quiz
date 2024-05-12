@@ -1,20 +1,25 @@
 import { arrayAlmostHas, inBetween, tmpRef } from './utils.mjs';
-import { createContextLogger } from './logging.mjs';
+import bunyan from 'bunyan'
 
-const logger = createContextLogger('filters')
+const log = bunyan.createLogger(
+  {
+    name: 'anilist-poster-quiz',
+    src: true
+  }
+);
 
 
 function isValidMedia(media) {
   if(!media) {
-    logger.warning('Missing media', { media });
+    log.warn({ media });
     return false;
   }
   if(!media.coverImage.extraLarge) {
-    logger.verbose('Cover image missing', { media });
+    log.trace({ media });
     return false;
   }
   if(!(media.title.english || media.title.romaji)) {
-    logger.verbose('Missing title', { media });
+    log.trace({ media });
     return false;
   }
   return true;
@@ -47,24 +52,9 @@ class Filter {
   
   run(media) {
     let ref = tmpRef();
-    logger.trace(
-      'Running filter',
-      { 
-        ref: ref,
-        filter: this.info,
-        media: media.info
-      }
-    );
+    log.trace({ ref: ref, filter: this.info, media: media.info });
     const pass = this.#f(media, ...this.#args);
-    logger.trace(
-      'Filtering result',
-      {
-        ref: ref,
-        filter: this.info,
-        media: media,
-        pass: pass
-      }
-    );
+    log.trace({ ref: ref, filter: this.info, media: media, pass: pass });
     return pass;
   }
 
@@ -82,7 +72,7 @@ class FilterCollection {
   #filterSpecs = [];
 
   constructor(filterSpecs) {
-    logger.debug('Constructin FilterCollection', { filterSpecs });
+    log.debug({ filterSpecs });
     this.#filterSpecs = [
       {
         name: 'validMedia',
@@ -94,7 +84,7 @@ class FilterCollection {
   }
 
   createFilter(filterSpec) {
-    logger.debug('Creating filter', { filterSpec });
+    log.debug({ filterSpec });
     this.#filters.push(new Filter(filterSpec));
   }
 
@@ -106,7 +96,7 @@ class FilterCollection {
   }
 
   filter(medias) {
-    logger.debug('Filtering medias', { info: this.info });
+    log.debug({ info: this.info });
     const filters = this.#filters;
     return medias.filter(
       m => filters.every(f => f.run(m))

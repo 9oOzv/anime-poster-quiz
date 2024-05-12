@@ -1,26 +1,17 @@
 import express from 'express';
 import path from 'path';
 import bodyParser from 'body-parser';
-import buffer from 'buffer';
 import { loadImage, createCanvas } from 'canvas';
 import { promises as fs } from 'fs';
-import {
-  createContextLogger,
-  ERROR,
-  WARNING,
-  INFO,
-  NOTICE,
-  VERBOSE,
-  DEBUG,
-  TRACE
-} from './logging.mjs';
 import { FilterCollection } from './filters.mjs';
 import { compare, sleep, normalizeString } from './utils.mjs';
 import { exampleMediaData } from './example-data.mjs';
 import yargs from 'yargs';
+import bunyan from 'bunyan'
 const __dirname = import.meta.dirname;
 
-const logger = createContextLogger('server');
+var log = null;
+
 
 const app = express();
 
@@ -191,22 +182,19 @@ class MediaCollection {
 
   constructor(mediaData) {
     const id = Date.now().toString(36);
-    this.logger = createContextLogger('MediaCollection', { mediaCollectionId: id });
     this.#id = id;
-    TRACE(this, 'Creating MediaCollection', { mediaData });
+    log.trace('Creating MediaCollection', { this: this, mediaData });
     this.#data = mediaData;
     this.createMedias(this.#data);
   }
 
   createMedias() {
-    INFO(this, 'Creating medias', { mediaDataLength: this.#data.length });
-    TRACE(this, 'Creating medias', {});
+    log.info({ this: this, mediaDataLength: this.#data.length }, 'Creating medias');
     var fc
     const filteredData = (fc = this.#filterCollection) ?
       fc.filter(this.#data)
       : this.#data;
-    INFO(this, 'Filtered medias', { filteredDataLength: this.#data.length });
-    TRACE(this, 'Filtered data', { filteredDataLength: filteredData.length });
+    log.info({ this: this, filteredDataLength: this.#data.length }, 'Filtered medias');
     this.#medias = filteredData.map(m => new Media(m));
     this.#completions = null;
   }
@@ -226,12 +214,12 @@ class MediaCollection {
         )
       )
     ].map(v => v[1]);
-    TRACE(this, 'Generated completions', { completions });
+    log.trace({ completions });
     return completions
   }
 
   completions() {
-    INFO('Completions');
+    log.trace({this: this});
     return this.#completions ??= this.generateCompletions();
   }
 
@@ -278,20 +266,19 @@ class Game {
   #newConfig;
 
   constructor(adminConfig, gameConfig) {
-    DEBUG(this, 'Creating new game', { adminConfig, gameConfig });
+    log.debug({ this: this, adminConfig, gameConfig });
     const id = Date.now().toString(36);
-    this.logger = createContextLogger('Game', { gameId: id });
     this.#id = id;
     this.#adminConfig = adminConfig;
     this.setGameConfig(gameConfig);
   }
 
   setGameConfig(config) {
-    INFO(this, 'Setting game options', { config });
+    log.info({ this: this, config });
     for(const [k, v] of Object.entries(config)) {
       this.#config[k] = v;
     }
-    DEBUG(this,'New config', { config: this.#config });
+    log.debug({ this: this, config: this.#config });
   }
 
   async init() {
@@ -327,62 +314,62 @@ class Game {
   async loadData() {
     const mediaDataPath = this.#adminConfig.mediaDataPath;
     if (!mediaDataPath) {
-      NOTICE(this, 'Loading example media', { exampleMediaData });
+      log.info({ this: this, exampleMediaData });
       return exampleMediaData;
     }
     return await fs.readFile(this.#adminConfig.mediaDataPath, 'utf8')
       .then(JSON.parse)
       .catch(
         error => {
-          ERROR(this, 'Could not load data', { path: this.#adminConfig.mediaDataPath, error: error });
-          ERROR(this, 'Loading example media', { exampleMediaData });
+          log.error({ this: this, path: this.#adminConfig.mediaDataPath, error: error });
+          log.error({ this: this, exampleMediaData });
           return exampleMediaData;
         }
       );
   }
 
   async doRevealAll() {
-    INFO(this, 'Revealing all')
+    log.info({ this: this });
     await this.hintImage.revealAll();
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
     this.#phase = 'reveal';
-    VERBOSE(this, 'Sending images', { listeners: listeners.length });
+    log.info({ this: this, numListeners: listeners.length });
     listeners.forEach(f => f(this.hintJpeg));
     this.#wait = this.#config.revealWait;
     return;
   }
 
   async doRevealMore() {
-    INFO(this, 'Revealing more')
+    log.info({ this: this });
     await this.hintImage.revealCircle(
       this.#config.circleSizeMin,
       this.#config.circleSizeMax
     )
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
-    VERBOSE(this, 'Sending images', { listeners: listeners.length });
+    log.info({ this: this, numListeners: listeners.length });
     listeners.forEach(f => f(this.hintJpeg));
     this.#wait = this.#config.revealWait;
     return;
   }
 
   doResults() {
-  INFO(this, 'Showing results');
+    log.info({ this: this });
     const results
       = this.#results
       = this.#answers;
     const listeners = this.#resultListeners;
     this.#resultListeners = [];
     this.#phase = 'results';
-    VERBOSE(this, 'Sending results', { listeners: listeners.length });
+    log.info({ this: this, numListeners: listeners.length });
     listeners.forEach(f => f(results));
     this.#wait = this.#config.resultWait;
     return;
   }
 
   async doReset() {
-    INFO(this, 'Resetting');
+    this.info({ this: this });
     if(this.#newConfig) {
       await this.init();
       return;
@@ -390,7 +377,7 @@ class Game {
     const listeners = this.#resetListeners;
     this.#resetListeners = [];
     this.#phase = 'guessing';
-    VERBOSE(this, 'Sending resets', { listeners: listeners.length });
+    log.info({ this: this, listeners: listeners.length });
     listeners.forEach(f => f());
     await this.newQuestion();
     this.#wait = this.#config.shortWait;
@@ -398,7 +385,7 @@ class Game {
   }
 
   async doMessage(messages, errors) {
-    INFO(this, 'Sending a message', { messages, errors });
+    log.info({ this: this, messages, errors });
     this.#resetListeners.forEach(f => f());
     this.#nextHintListeners.forEach(f => f(dummyImage()));
     this.#resultListeners.forEach(f => f({}));
@@ -432,20 +419,20 @@ class Game {
 
   async doError(error) {
         if(error instanceof GameError) {
-          ERROR(this, error);
+          log.error({ this: this, err: error });
           await this.doMessage(null, error.message);
         } else {
-          ERROR(this, error);
+          log.error({ this: this, err: error });
           await this.doMessage(null, 'Something unexpected happened. Restarting.');
         }
   }
 
   async run() {
     while(true) {
-      TRACE(this, 'Run start', { phase: this.#phase });
+      log.trace({ this: this, phase: this.#phase });
       await this.doStuff()
         .catch(error => this.doError(error));
-      TRACE(this, 'Run end', { phase: this.#phase, wait: this.#wait } );
+      log.trace({ this: this, phase: this.#phase, wait: this.#wait });
       await sleep(this.#wait);
     }
   }
@@ -458,10 +445,7 @@ class Game {
     if(!media) {
       throw new GameError('Could not load media. Maybe a configuration/filter problem?');
     }
-    INFO(this, 
-      'Selected new poster',
-      { media: media.info }
-    )
+    log.info({ this: this, media: media.info });
     this.hintImage = new HintImage(await media.image());
     this.#answers = {};
     this.#answers['CORRECT ANSWER'] = {
@@ -495,7 +479,7 @@ class Game {
   }
 
   submitAnswer(player, answer) {
-    INFO(this, `Received answer`, { player, answer });
+    log.info({ this:this, player, answer });
     const accepted = this.#currentMedia.answers;
     this.#answers[player] = {
       answer: answer,
@@ -518,8 +502,8 @@ class Game {
   }
 
   completions() {
-    DEBUG(this, 'Completions', { });
-    TRACE(this, 'Completions', { mediaCollection: this.#mediaCollection });
+    log.debug({ this: this });
+    log.trace({ this: this, mediaCollection: this.#mediaCollection });
     return this.#mediaCollection.completions();
   }
 
@@ -528,10 +512,7 @@ class Game {
   }
 
   async configure(config, immediate = false) {
-    INFO(this, 
-      'Set new configuration',
-      { config, immediate }
-    )
+    log.info({ this: this, config, immediate })
     this.#newConfig = config;
     if(immediate) {
       this.#phase = '';
@@ -556,7 +537,18 @@ function parseFilterString(filterString) {
 
 
 async function serve(options) {
-  DEBUG(logger, 'Serve options', { options });
+  log = bunyan.createLogger(
+    {
+      name: 'anilist-poster-quiz',
+      level: options.trace
+        ? 'trace'
+        : options.debug
+        ? 'debug'
+        : 'info',
+      src: true
+    }
+  );
+  log.debug({ options });
   options.gameConfig.filters = parseFilterString(options.filters);
   const game = new Game(
     options.adminConfig,
@@ -568,44 +560,44 @@ async function serve(options) {
   app.use('/static', express.static(path.join(__dirname, 'public')));
   app.get('/next.jpg', async (_, res) => {
     const data = await game.nextHintJpeg();
-    TRACE(logger, 'Responding to `next.jpg`', { type: typeof(data), length: data.length });
+    log.trace({ type: typeof(data), length: data.length });
     res.send(data);
   });
   app.get('/current.jpg', async (_, res) => {
     const data = await game.hintJpeg();
-    TRACE(logger, 'Responding to `current.jpg`', { type: typeof(data), length: data.length });
+    log.trace({ type: typeof(data), length: data.length });
     res.send(data);
   });
   app.get('/', (_, res) => {
     const indexPath = path.join(__dirname, 'public', 'index.html')
-    TRACE(logger, 'Responding to `/`', { indexPath });
+    log.trace({ indexPath });
     res.sendFile(indexPath);
   });
   app.get('/next', (_, res) => {
     const data = game.next();
-    TRACE(logger, 'Responding to `/next`', { data });
+    log.trace({ data });
     res.json(data);
   });
   app.get('/completions', (_, res) => {
     const data = game.completions();
-    TRACE(logger, 'Responding to `/completions`', { data });
+    log.trace({ data });
     res.json(data);
   });
   app.post('/submit', (req, res) => {
     const { nickname, answer } = req.body;
     game.submitAnswer(nickname, answer);
     const data = { status: 'success' }
-    TRACE(logger, 'Responding to `/submit`', { data, nickname, answer, });
+    log.trace({ data, nickname, answer, });
     res.json(data);
   });
   app.get('/reset', async (_, res) => {
     const data = await game.reset();
-    TRACE(logger, 'Responding to `/reset`', { data });
+    log.trace({ data });
     res.json(data);
   });
   app.get('/results', async (_, res) => {
     const data = await game.nextResults();
-    TRACE(logger, 'Responding to `/results`', { data });
+    log.trace({ data });
     res.json(data);
   });
   app.get('/message', async (_, res) => {
@@ -615,22 +607,22 @@ async function serve(options) {
         messages: game.messages,
       }
     };
-    TRACE(logger, 'Responding to `/message`', { data });
+    log.trace({ data });
     res.json(data);
   });
   app.get('/configure', (_, res) => {
     const htmlPath = path.join(__dirname, 'public', 'config.html')
-    TRACE(logger, 'Responding to `/configure`', { htmlPath });
+    log.trace({ htmlPath });
     res.sendFile(htmlPath);
   });
   app.get('/configuration', (_, res) => {
     const config = game.configuration;
-    TRACE(logger, 'Responding to `/configuration`', { config });
+    log.trace({ config });
     res.json(config);
   });
   app.post('/configuration', async (req, res) => {
     const data = req.body;
-    TRACE(logger, 'Handling POST `/configuration`', { data });
+    log.trace({ data });
     game.configure(data.config, data.immediate)
       .then(() => res.json({ status: 'success' }))
       .catch(err => {
@@ -640,7 +632,7 @@ async function serve(options) {
       });
   });
   app.listen(options.port, () => {
-    INFO(logger, `Server is running`, { port: options.port });
+    log.info({ port: options.port });
   });
 }
 
@@ -718,9 +710,18 @@ yargs(process.argv.slice(2))
         describe: 'Add filters. Format as "filter1Name(a,b,c);filter2Name(d,e,f);..."',
         type: 'string'
     })
+    .option('debug', {
+        default: process.env.DEBUG ? true: false,
+        describe: 'Debug logging',
+        type: 'boolean'
+    })
+    .option('trace', {
+        default: process.env.TRACE ? true: false,
+        describe: 'Trace logging',
+        type: 'boolean'
+    })
   },
   function (argv) {
-    DEBUG(logger, 'Command line arguments', argv)
     serve(
       {
         adminConfig: {
