@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import bodyParser from 'body-parser';
+import buffer from 'buffer';
 import { loadImage, createCanvas } from 'canvas';
 import { promises as fs } from 'fs';
 import {
@@ -34,18 +35,19 @@ class GameError extends Error {
 
 
 function dummyImage(){
-    return createCanvas(10, 10).createJPEGStream();
+    return createCanvas(10, 10).toBuffer();
 }
 
 
 
 class HintImage {
   #circles = [];
-  #jpegStream;
   #image;
+  #jpegBuffer;
 
   constructor(image) {
     this.#image = image;
+    this.#jpegBuffer = dummyImage();
   }
 
   createRandomCircle(width, height, minRadius = 0, maxRadius = 1) {
@@ -83,7 +85,7 @@ class HintImage {
       ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
       ctx.fill();
     });
-    this.#jpegStream = canvas.createJPEGStream();
+    this.#jpegBuffer = canvas.toBuffer('image/jpeg');
   }
 
   async revealAll() {
@@ -94,7 +96,7 @@ class HintImage {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = ctx.createPattern(this.#image, "repeat");;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    this.#jpegStream = canvas.createJPEGStream();
+    this.#jpegBuffer = canvas.toBuffer('image/jpeg');
   }
 
   blackCanvas(w, h) {
@@ -105,8 +107,8 @@ class HintImage {
     return canvas;
   }
 
-  get jpegStream() {
-    return this.#jpegStream;
+  get jpeg() {
+    return this.#jpegBuffer;
   }
 
   get width() {
@@ -345,10 +347,8 @@ class Game {
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
     this.#phase = 'reveal';
-    VERBOSE(this, 'Sending image', { listeners: listeners.length });
-    listeners.forEach(
-      f => f(this.hintJpegStream)
-    );
+    VERBOSE(this, 'Sending images', { listeners: listeners.length });
+    listeners.forEach(f => f(this.hintJpeg));
     this.#wait = this.#config.revealWait;
     return;
   }
@@ -361,8 +361,8 @@ class Game {
     )
     const listeners = this.#nextHintListeners;
     this.#nextHintListeners = [];
-    VERBOSE(this, 'Sending image', { listeners: listeners.length });
-    listeners.forEach(f => f(this.hintJpegStream));
+    VERBOSE(this, 'Sending images', { listeners: listeners.length });
+    listeners.forEach(f => f(this.hintJpeg));
     this.#wait = this.#config.revealWait;
     return;
   }
@@ -471,13 +471,13 @@ class Game {
     }
   }
 
-  async nextHintJpegStream() {
+  async nextHintJpeg() {
     const listeners = this.#nextHintListeners;
     return new Promise((resolve) => listeners.push(resolve));
   }
 
-  get hintJpegStream() {
-    return this.hintImage.jpegStream;
+  get hintJpeg() {
+    return this.hintImage.jpeg;
   }
 
   async reset() {
@@ -567,13 +567,14 @@ async function serve(options) {
   app.use(bodyParser.json());
   app.use('/static', express.static(path.join(__dirname, 'public')));
   app.get('/next.jpg', async (_, res) => {
-    const stream = await game.nextHintJpegStream();
-    TRACE(logger, 'Responding to `next.jpg`', { typeofStream: typeof(stream) });
-    stream.pipe(res);
+    const data = await game.nextHintJpeg();
+    TRACE(logger, 'Responding to `next.jpg`', { type: typeof(data), length: data.length });
+    res.send(data);
   });
   app.get('/current.jpg', async (_, res) => {
-    const stream = (await game.hintJpegStream).pipe(res);
-    TRACE(logger, 'Responding to `current.jpg`',{ typeofStream: typeof(stream) });
+    const data = await game.hintJpeg();
+    TRACE(logger, 'Responding to `current.jpg`', { type: typeof(data), length: data.length });
+    res.send(data);
   });
   app.get('/', (_, res) => {
     const indexPath = path.join(__dirname, 'public', 'index.html')
@@ -695,8 +696,7 @@ yargs(process.argv.slice(2))
         type: 'number'
     })
     .option('min-circle-size', {
-        alias: 'min-cs',
-        default: 0.01,
+        alias: 'min-cs', default: 0.01,
         describe: 'Minimum reveal circle radius. As a fraction of max(<image width>, <image height>)',
         type: 'number'
     })
