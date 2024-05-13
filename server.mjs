@@ -7,13 +7,16 @@ import { FilterCollection } from './filters.mjs';
 import { compare, sleep, normalizeString } from './utils.mjs';
 import { exampleMediaData } from './example-data.mjs';
 import yargs from 'yargs';
-import bunyan from 'bunyan'
+import bunyan from 'bunyan';
+import http from 'http';
+import { WebSocketServer } from 'ws';
 const __dirname = import.meta.dirname;
 
 var log = null;
 
 
 const app = express();
+const server = http.createServer(app)
 
 
 class GameError extends Error {
@@ -258,18 +261,16 @@ class Game {
   #phase;
   #wait;
   #mediaCollection;
-  #nextHintListeners;
-  #resultListeners;
-  #resetListeners;
-  #logger;
   messages;
   #newConfig;
+  #clients;
 
   constructor(adminConfig, gameConfig) {
     log.debug({ this: this, adminConfig, gameConfig });
     const id = Date.now().toString(36);
     this.#id = id;
     this.#adminConfig = adminConfig;
+    this.#clients = new Set();
     this.setGameConfig(gameConfig);
   }
 
@@ -296,19 +297,29 @@ class Game {
     this.#start = null;
     this.#phase = '';
     this.#wait = 0;
-    this.initListeners();
   }
 
-  initListeners() {
-    let resetListeners = this.#resetListeners ?? [];
-    let resultListeners = this.#resultListeners ?? [];
-    let nextHintListeners = this.#nextHintListeners ?? [];
-    this.#resetListeners = [];
-    this.#resultListeners = [];
-    this.#nextHintListeners = [];
-    resetListeners.forEach(f => f());
-    nextHintListeners.forEach(f => f(dummyImage()));
-    resultListeners.forEach(f => f({}));
+  initClient(client)  {
+    log.info({ this: this, client });
+    client.game = this;
+    client.sendCommand('completions', this.completions);
+  }
+
+  removeClient(client) {
+    log.info({ this: this, client });
+    this.#clients.delete(client);
+  }
+
+  addClient(client) {
+    log.info({ this: this, client });
+    this.#clients.add(client)
+    this.initClient(client);
+  }
+
+  clientCommand(client, command, ...args) {
+    if (command == 'answer') {
+      this.submitAnswer(...args)
+    }
   }
 
   async loadData() {
@@ -328,14 +339,16 @@ class Game {
       );
   }
 
+  sendCommands(command, ...args) {
+    log.info({ this: this, numClients: this.#clients.size, command});
+    this.#clients.forEach(c => c.sendCommand(command, ...args));
+  }
+
   async doRevealAll() {
     log.info({ this: this });
     await this.hintImage.revealAll();
-    const listeners = this.#nextHintListeners;
-    this.#nextHintListeners = [];
+    this.sendCommands('showImage', this.hintJpeg.toString('base64'));
     this.#phase = 'reveal';
-    log.info({ this: this, numListeners: listeners.length });
-    listeners.forEach(f => f(this.hintJpeg));
     this.#wait = this.#config.revealWait;
     return;
   }
@@ -346,10 +359,7 @@ class Game {
       this.#config.circleSizeMin,
       this.#config.circleSizeMax
     )
-    const listeners = this.#nextHintListeners;
-    this.#nextHintListeners = [];
-    log.info({ this: this, numListeners: listeners.length });
-    listeners.forEach(f => f(this.hintJpeg));
+    this.sendCommands('showImage', this.hintJpeg.toString('base64'));
     this.#wait = this.#config.revealWait;
     return;
   }
@@ -359,36 +369,27 @@ class Game {
     const results
       = this.#results
       = this.#answers;
-    const listeners = this.#resultListeners;
-    this.#resultListeners = [];
+    this.sendCommands('showResults', results);
     this.#phase = 'results';
-    log.info({ this: this, numListeners: listeners.length });
-    listeners.forEach(f => f(results));
     this.#wait = this.#config.resultWait;
     return;
   }
 
   async doReset() {
-    this.info({ this: this });
+    log.info({ this: this });
     if(this.#newConfig) {
       await this.init();
       return;
     }
-    const listeners = this.#resetListeners;
-    this.#resetListeners = [];
-    this.#phase = 'guessing';
-    log.info({ this: this, listeners: listeners.length });
-    listeners.forEach(f => f());
+    this.sendCommands('reset');
     await this.newQuestion();
+    this.#phase = 'guessing';
     this.#wait = this.#config.shortWait;
     return;
   }
 
   async doMessage(messages, errors) {
     log.info({ this: this, messages, errors });
-    this.#resetListeners.forEach(f => f());
-    this.#nextHintListeners.forEach(f => f(dummyImage()));
-    this.#resultListeners.forEach(f => f({}));
     errors ??= [];
     errors = (Array.isArray(errors)) ? errors : [ errors ]
     messages ??= [];
@@ -397,6 +398,7 @@ class Game {
       ...messages.map(m => ({ text: m, classes: 'good'})),
       ...errors.map(m => ({ text: m, classes: 'bad'}))
     ];
+    this.sendCommands('showMessages', this.messages);
     this.#phase = 'message';
     this.#wait = this.#config.messageWait;
     return;
@@ -455,27 +457,8 @@ class Game {
     }
   }
 
-  async nextHintJpeg() {
-    const listeners = this.#nextHintListeners;
-    return new Promise((resolve) => listeners.push(resolve));
-  }
-
   get hintJpeg() {
     return this.hintImage.jpeg;
-  }
-
-  async reset() {
-    const listeners = this.#resetListeners;
-    return new Promise((resolve) => listeners.push(resolve));
-  }
-
-  async nextResults() {
-    const listeners = this.#resultListeners;
-    return new Promise((resolve) => listeners.push(resolve));
-  }
-
-  get results() {
-    return this.#results;
   }
 
   submitAnswer(player, answer) {
@@ -488,20 +471,7 @@ class Game {
     };
   }
 
-  next() {
-    if(this.#phase === 'reveal') {
-      return { action: 'results' };
-    }
-    if(this.#phase === 'results'){
-      return { action: 'reset' };
-    }
-    if(this.#phase === 'message'){
-      return { action: 'message' };
-    }
-    return { action: 'image' };
-  }
-
-  completions() {
+  get completions() {
     log.debug({ this: this });
     log.trace({ this: this, mediaCollection: this.#mediaCollection });
     return this.#mediaCollection.completions();
@@ -536,6 +506,33 @@ function parseFilterString(filterString) {
 }
 
 
+class Client {
+
+  #ws;
+
+  constructor(ws) {
+    log.info({ this: this });
+    this.id = Date.now().toString(36);
+    this.#ws = ws;
+    this.#ws.on('message', (event) => this.onMessage(event.data));
+    this.#ws.on('close', () => this.game && this.game.removeClient(this));
+    this.game = null;
+    log.info({ this: this });
+  }
+
+  sendCommand(command, ...args) {
+    this.#ws.send(JSON.stringify({ command: command, args: args }));
+  }
+
+  onMessage(json) {
+    data = JSON.parse(json);
+    const command = data.command;
+    const args = data.args;
+    game.clientCommand(command, args);
+  }
+}
+
+
 async function serve(options) {
   log = bunyan.createLogger(
     {
@@ -545,7 +542,8 @@ async function serve(options) {
         : options.debug
         ? 'debug'
         : 'info',
-      src: true
+      src: true,
+      serializers: bunyan.stdSerializers
     }
   );
   log.debug({ options });
@@ -558,57 +556,10 @@ async function serve(options) {
   game.run();
   app.use(bodyParser.json());
   app.use('/static', express.static(path.join(__dirname, 'public')));
-  app.get('/next.jpg', async (_, res) => {
-    const data = await game.nextHintJpeg();
-    log.trace({ type: typeof(data), length: data.length });
-    res.send(data);
-  });
-  app.get('/current.jpg', async (_, res) => {
-    const data = await game.hintJpeg();
-    log.trace({ type: typeof(data), length: data.length });
-    res.send(data);
-  });
   app.get('/', (_, res) => {
     const indexPath = path.join(__dirname, 'public', 'index.html')
     log.trace({ indexPath });
     res.sendFile(indexPath);
-  });
-  app.get('/next', (_, res) => {
-    const data = game.next();
-    log.trace({ data });
-    res.json(data);
-  });
-  app.get('/completions', (_, res) => {
-    const data = game.completions();
-    log.trace({ data });
-    res.json(data);
-  });
-  app.post('/submit', (req, res) => {
-    const { nickname, answer } = req.body;
-    game.submitAnswer(nickname, answer);
-    const data = { status: 'success' }
-    log.trace({ data, nickname, answer, });
-    res.json(data);
-  });
-  app.get('/reset', async (_, res) => {
-    const data = await game.reset();
-    log.trace({ data });
-    res.json(data);
-  });
-  app.get('/results', async (_, res) => {
-    const data = await game.nextResults();
-    log.trace({ data });
-    res.json(data);
-  });
-  app.get('/message', async (_, res) => {
-    const data = {
-      status: 'success',
-      data: {
-        messages: game.messages,
-      }
-    };
-    log.trace({ data });
-    res.json(data);
   });
   app.get('/configure', (_, res) => {
     const htmlPath = path.join(__dirname, 'public', 'config.html')
@@ -631,7 +582,12 @@ async function serve(options) {
         res.json({ status: 'failed', message: 'Configuration failed'});
       });
   });
-  app.listen(options.port, () => {
+  const wss = new WebSocketServer({server: server, path: "/ws"});
+  wss.on(
+    "connection",
+    (ws) => game.addClient(new Client(ws))
+  );
+  server.listen(options.port, () => {
     log.info({ port: options.port });
   });
 }

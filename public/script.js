@@ -13,54 +13,24 @@ var prevViewId = null;
 var currentViewId = null;
 var initialViewId = null;
 var responsiveLayout = true;
-
+var ws = null;
 const responsiveIds = [
   "root",
   "body",
   "app"
 ]
-
 const viewIds = [
   "app-main",
   "menu"
 ]
-
 var responsiveElements = null;
 var viewElements = null;
-
-const worker = new Worker('static/worker.js', { type: "module" });
-
 var statusMessages = [];
-
-function getBlob(response) {
-  if (!response.ok) {
-    throw new Error('Failed fetching blob');
-  }
-  return response.blob();
-}
-
-
-async function getJson(response) {
-  if (!response.ok) {
-    throw new Error('Failed fetching JSON');
-  }
-  return response.json();
-}
+const worker = new Worker('static/worker.js', { type: "module" });
 
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-
-function reload() {
-  console.log('Reloading app')
-  location.reload();
-}
-
-
-function unknown() {
-  console.log('Received unknown action')
 }
 
 
@@ -82,6 +52,7 @@ function createElement(element, classes, children, textContent) {
   return e;
 }
  
+
 function replaceContent(element, children, textContent) {
   children ??= [];
   if(!Array.isArray(children)) {
@@ -92,34 +63,6 @@ function replaceContent(element, children, textContent) {
     element.textContent = textContent;
   }
   children.forEach(c => element.appendChild(c));
-}
-
-
-function showMessages(messages) {
-  replaceContent(
-    appContent,
-    messages.map(
-      m => createElement(
-        'div',
-        'message-box',
-        statusMessage(m.text, m.classes)
-      )
-    )
-  );
-}
-
-
-function statusMessage(msg, classes) {
-  classes ??= []
-  if(!Array.isArray(classes)) {
-    classes = [ classes ]
-  }
-  return createElement(
-    'div',
-    [...classes, 'message'],
-    null,
-    msg
-  )
 }
 
 
@@ -183,7 +126,7 @@ function createCompletionOption(text) {
 
 async function updateCompletions() {
   preAutofillInput = answerInput.value;
-  worker.postMessage(answerInput.value);
+  worker.postMessage({ command: "complete", query: answerInput.value });
 }
 
 
@@ -231,12 +174,6 @@ function resultLine(name, result) {
   )
 }
 
-function resultLines(results) {
-  return Object.entries(results).map(
-    ([name, result]) => resultLine(name, result)
-  )
-}
-
 
 function updateSelectedCompletion(items) {
   items.forEach(function(item, index) {
@@ -253,91 +190,14 @@ function updateSelectedCompletion(items) {
 }
 
 
+function sendCommand(command, ...args) {
+  ws.send({ command, args });
+}
+
+
 function submitAnswer() {
-  const answer = answerInput.value;
-  const nickname = nickInput.value;
-  const data = { answer, nickname };
-  console.log('submitting answer')
-  fetch('submit', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  })
-  .then(response => responseReport(response, 'Answer submitted', 'Submission failed'))
-  .catch(error => reportError(error, 'Submission failed'));
+  sendCommand('answer', nickInput.value, answerInput.value);
 }
-
-
-async function doReset() {
-  const json = await fetch('reset');
-  messages = [];
-  completions.innerHTML = '';
-  compSelection = -1;
-  appMain.innerHTML = '';
-  image = null;
-}
-
-
-async function doMessage() {
-  const json = await fetch('message')
-    .then(res => res.json());
-  showMessages(json.data.messages);
-}
-
-
-async function doNextImage() {
-  console.log('Fetching image')
-  await fetch('next.jpg')
-    .then(getBlob)
-    .then(blob => {
-      const imageUrl = URL.createObjectURL(blob);
-      if(image) {
-        image.src = imageUrl;
-      } else {
-        image = createElement('img', 'image');
-        image.src = imageUrl;
-        image.alt = 'hint';
-        replaceContent(appContent, image);
-      }
-    });
-}
-
-
-async function doResults() {
-  console.log('Fetching results')
-  await fetch('results')
-    .then(getJson)
-    .then(results => {
-      const lines = resultLines(results);
-      replaceContent(
-        appContent,
-        createElement(
-          'div',
-          'result-box',
-          lines
-        )
-      )
-    });
-}
-
-
-async function doStuff(data) {
-  const op = data.action;
-  if (op == 'image') {
-    await doNextImage();
-  } else if (op == 'results') {
-    await doResults();
-  } else if (op == 'reset') {
-    await doReset();
-  } else if (op == 'reload') {
-    await doReload();
-  } else if (op == 'message') {
-    await doMessage();
-  } else {
-    await unknown();
-  }
-}
-
 
 function onKeyDown(event) {
     var items = completions.querySelectorAll('div');
@@ -440,17 +300,85 @@ function toggleResponsiveLayout() {
 }
 
 
+const commands = {};
+
+
+commands.showImage = function(base64Data) {
+  const img = createElement('img', 'image');
+  img.src = 'data:image/jpeg;base64,' + base64Data;
+  img.alt = 'hint';
+  replaceContent(appContent, img);
+}
+
+
+commands.showResults = function(results) {
+  lines = Object.entries(results).map(
+    ([name, result]) => resultLine(name, result)
+  )
+  replaceContent(
+    appContent,
+    createElement(
+      'div',
+      'result-box',
+      lines
+    )
+  )
+}
+
+
+function statusMessage(msg, classes) {
+  classes ??= []
+  if(!Array.isArray(classes)) {
+    classes = [ classes ]
+  }
+  return createElement(
+    'div',
+    [...classes, 'message'],
+    null,
+    msg
+  )
+}
+
+
+commands.showMessages = function(messages) {
+  replaceContent(
+    appContent,
+    messages.map(
+      m => createElement(
+        'div',
+        'message-box',
+        statusMessage(m.text, m.classes)
+      )
+    )
+  );
+}
+
+
+commands.reset = function() {
+  messages = [];
+  completions.innerHTML = '';
+  compSelection = -1;
+  appContent.innerHTML = '';
+  image = null;
+}
+
+
+commands.completions = function(data) {
+  worker.postMessage({ command: "init", completions: data });
+}
+
 
 function init() {
   responsiveElements = responsiveIds.map(id => document.getElementById(id));
   viewElements = viewIds.map(id => document.getElementById(id));
   prevViewId
     = currentViewId
-    = initialViewId
-    = viewElements.find(e => !e.classList.contains('hidden')).id;
+      = initialViewId
+        = viewElements.find(e => !e.classList.contains('hidden')).id;
   setResponsive(true);
   menuView = document.getElementById("menu");
   completions = document.getElementById("completions");
+  appMain = document.getElementById('app-main');
   appStatus = document.getElementById('app-status');
   appContent = document.getElementById('app-content');
   answerDatalist = document.getElementById('answer-datalist');
@@ -459,21 +387,12 @@ function init() {
   answerInput = document.getElementById("answer-input");
   nickInput = document.getElementById('nickname-input');
   initCompletion();
-  run();
-}
-
-
-async function run() {
-  while(true) {
-    await fetch('next')
-      .then(getJson)
-      .then(doStuff)
-      .catch(async error => {
-        reportError(error, 'Something went wrong');
-        await sleep(1000);
-      });
-    await sleep(100);
-  }
+  ws = new WebSocket('ws://localhost:3000/ws');
+  ws.addEventListener("message", (event) => {
+    const data = JSON.parse(event.data);
+    console.debug({command: data.command});
+    commands[data.command](...data.args);
+  });
 }
 
 

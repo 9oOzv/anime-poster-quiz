@@ -3,38 +3,44 @@ import Fuse from 'https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.mjs';
 var running = null;
 var fuse = null;
 var nextSearch = null;
-
-async function updateCompletions() {
-  console.log('Updating completions');
-  const completions = await fetch('../completions')
-    .then(response => response.json())
-    .catch(_ => console.error('Fetching completions failed'));
-  console.log(`completions:`, completions);
-  fuse = new Fuse(completions);
-}
+var ready = false;
 
 
 async function run() {
-  if(!fuse) {
-    await updateCompletions();
+  if(!ready) {
+    running = false;
+    return;
   }
   while(nextSearch) {
+    console.debug({ nextSearch });
     const str = nextSearch;
     nextSearch = null;
     const results = fuse.search(str).slice(0, 10).map(v => v.item);
-    console.log(`results: ${results}`)
     postMessage(results);
   }
   running = false;
 }
 
 
-onmessage = function(e) {
-  console.log(nextSearch);
-  console.log(running);
-  nextSearch = e.data;
+function complete(query) {
+  console.debug({ query });
+  nextSearch = query;
   if(!running) {
     running = true;
     setTimeout(() => run(), 0);
+  }
+}
+
+
+onmessage = function(e) {
+  const data = e.data;
+  const command = data.command;
+  console.debug({ command });
+  if(command == 'init') {
+    fuse = new Fuse(data.completions);
+    ready = true;
+  }
+  if(command == 'complete') {
+    complete(data.query);
   }
 }
