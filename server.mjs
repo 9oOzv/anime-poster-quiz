@@ -1,22 +1,23 @@
 import express from 'express';
 import path from 'path';
 import bodyParser from 'body-parser';
-import { loadImage, createCanvas } from 'canvas';
 import { promises as fs } from 'fs';
 import { FilterCollection } from './filters.mjs';
-import { compare, sleep, normalizeString } from './utils.mjs';
+import { compare, sleep } from './utils.mjs';
 import { exampleMediaData } from './example-data.mjs';
 import yargs from 'yargs';
-import bunyan from 'bunyan';
 import http from 'http';
 import { WebSocketServer } from 'ws';
+import { MediaCollection } from './mediacollection.mjs';
+import { HintImage } from './hintimage.mjs';
+import { getLog, configLog } from './log.mjs';
 const __dirname = import.meta.dirname;
-
-var log = null;
 
 
 const app = express();
-const server = http.createServer(app)
+const server = http.createServer(app);;
+
+const log = getLog('apq');
 
 
 class GameError extends Error {
@@ -26,215 +27,6 @@ class GameError extends Error {
     Error.captureStackTrace(this, GameError);
   }
 }
-
-
-function dummyImage(){
-    return createCanvas(10, 10).toBuffer();
-}
-
-
-
-class HintImage {
-  #circles = [];
-  #image;
-  #jpegBuffer;
-
-  constructor(image) {
-    this.#image = image;
-    this.#jpegBuffer = dummyImage();
-  }
-
-  createRandomCircle(width, height, minRadius = 0, maxRadius = 1) {
-    const radiusFrac = minRadius + Math.random() * (maxRadius - minRadius);
-    const radius = radiusFrac * Math.max(width, height);
-    const x = Math.random() * (width - 2 * radius) + radius;
-    const y = Math.random() * (height - 2 * radius) + radius;
-    return { x, y, radius };
-  }
-
-  async revealCircle(minRadius, maxRadius) {
-    this.#circles.push(
-      this.createRandomCircle(
-        this.width,
-        this.height,
-        minRadius,
-        maxRadius
-      )
-    );
-    this.revealCircles();
-  }
-
-  async revealCircles() {
-    const canvas = this.blackCanvas(
-      this.width,
-      this.height
-    );
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = ctx.createPattern(
-      await this.#image,
-      "repeat"
-    );
-    this.#circles.forEach(circle => {
-      ctx.beginPath();
-      ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    this.#jpegBuffer = canvas.toBuffer('image/jpeg');
-  }
-
-  async revealAll() {
-    const canvas = this.blackCanvas(
-      this.width,
-      this.height
-    )
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = ctx.createPattern(this.#image, "repeat");;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    this.#jpegBuffer = canvas.toBuffer('image/jpeg');
-  }
-
-  blackCanvas(w, h) {
-    const canvas = createCanvas(w, h);
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, w, h);
-    return canvas;
-  }
-
-  get jpeg() {
-    return this.#jpegBuffer;
-  }
-
-  get width() {
-    return this.#image.width;
-  }
-
-  get height() {
-    return this.#image.height;
-  }
-
-  get numCircles() {
-    return this.#circles.length;
-  }
-
-}
-
-
-class Media {
-
-  #image;
-  #data;
-  #answers;
-
-  constructor(data) {
-    this.#data = data;
-  }
-
-  get answers() {
-    return this.#answers ??= [
-      this.#data.title.english,
-      this.#data.title.romaji,
-      this.#data.title.native,
-      ...this.synonyms,
-      ...this.hashtags
-    ].filter(a => a !== null);
-  }
-
-  get synonyms() {
-    return this.#data.synonyms ?? [];
-  }
-
-  get hashtags() {
-    return (this.#data.hashtag ?? '').split(/ +/);
-  }
-
-  get normalizedCompletions() {
-    return new Map(
-      this.answers.map(a => [ normalizeString(a), a ])
-    );
-  }
-
-  get displayAnswer() {
-    return [
-      this.#data.title.romaji,
-      this.#data.title.english,
-      this.#data.title.native
-    ].join(' | ');
-  }
-  
-  async image() {
-    return this.#image ??= loadImage(
-      this.#data.coverImage.extraLarge
-    );
-  }
-
-  get info() {
-    return this.#data;
-  }
-
-}
-
-
-class MediaCollection {
-
-  #id;
-  #data;
-  #filterCollection;
-  #completions;
-  #medias;
-
-  constructor(mediaData) {
-    const id = Date.now().toString(36);
-    this.#id = id;
-    log.trace('Creating MediaCollection', { this: this, mediaData });
-    this.#data = mediaData;
-    this.createMedias(this.#data);
-  }
-
-  createMedias() {
-    log.info({ this: this, mediaDataLength: this.#data.length }, 'Creating medias');
-    var fc
-    const filteredData = (fc = this.#filterCollection) ?
-      fc.filter(this.#data)
-      : this.#data;
-    log.info({ this: this, filteredDataLength: this.#data.length }, 'Filtered medias');
-    this.#medias = filteredData.map(m => new Media(m));
-    this.#completions = null;
-  }
-
-  setFilters(filterCollection) {
-    this.#filterCollection = filterCollection;
-    this.createMedias();
-  }
-
-  generateCompletions() {
-    const completions = [
-      ...new Map(
-        new Array().concat(
-          ...this.#medias.map(
-            m => [ ...m.normalizedCompletions ]
-          )
-        )
-      )
-    ].map(v => v[1]);
-    log.trace({ completions });
-    return completions
-  }
-
-  completions() {
-    log.trace({this: this});
-    return this.#completions ??= this.generateCompletions();
-  }
-
-  random() {
-    return this.#medias[
-      Math.floor(
-        Math.random() * this.#medias.length
-      )
-    ];
-  }
-}
-
 
 class Game {
   #config = {
@@ -534,18 +326,11 @@ class Client {
 
 
 async function serve(options) {
-  log = bunyan.createLogger(
-    {
-      name: 'anilist-poster-quiz',
-      level: options.trace
-        ? 'trace'
-        : options.debug
-        ? 'debug'
-        : 'info',
-      src: true,
-      serializers: bunyan.stdSerializers
-    }
-  );
+  const logLevel =
+    options.trace
+    ? 'trace' : options.debug
+    ? 'debug' : 'info';
+  configLog('apq', logLevel);
   log.debug({ options });
   options.gameConfig.filters = parseFilterString(options.filters);
   const game = new Game(
@@ -577,8 +362,8 @@ async function serve(options) {
     game.configure(data.config, data.immediate)
       .then(() => res.json({ status: 'success' }))
       .catch(err => {
-        logger.error('Configuration failed');
-        logger.error(err);
+        log.error('Configuration failed');
+        log.error(err);
         res.json({ status: 'failed', message: 'Configuration failed'});
       });
   });

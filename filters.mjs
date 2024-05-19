@@ -1,12 +1,7 @@
 import { arrayAlmostHas, inBetween, tmpRef } from './utils.mjs';
-import bunyan from 'bunyan'
+import { getLog } from './log.mjs';
 
-const log = bunyan.createLogger(
-  {
-    name: 'anilist-poster-quiz',
-    src: true
-  }
-);
+const log = getLog('apq');
 
 
 function isValidMedia(media) {
