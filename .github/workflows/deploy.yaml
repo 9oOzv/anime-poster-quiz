@@ -23,12 +23,13 @@ jobs:
             envs=( 
               DEPLOY_PATH
               DEPLOY_PORT
-              GIT_URL
-              GIT_REF
-              SERVICE_NAME
               DUMMY_MEDIA_DATA
-              MEDIA_DATA_PATH
               FETCH_MEDIA_DATA
+              GIT_REF
+              GIT_URL
+              MEDIA_DATA_PATH
+              SERVER_ARGS
+              SERVICE_NAME
             )
             ssh_env=()
             for e in "${envs[@]}"; do
@@ -46,20 +47,21 @@ jobs:
             cat "$DEPLOY_SH" | "${ssh_cmd[@]}"
           shell: bash
           env:
-            SSH_HOST: ${{ secrets.SSH_HOST }}
-            SSH_PORT: ${{ secrets.SSH_PORT }}
-            SSH_USER: ${{ secrets.SSH_USER }}
-            SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
-            SSH_KEY_PATH: ${{ github.workspace }}/../private.key
-            KNOWN_HOSTS_PATH: ${{ github.workspace }}/../known_hosts
-            DEPLOY_SH: ${{ github.workspace }}/deploy.sh
-            DEPLOY_SH_URL: ${{ vars.DEPLOY_SH_URL }}
             DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
             DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-            GIT_URL: ${{ secrets.GIT_URL }}
-            GIT_REF: ${{ secrets.GIT_REF }}
-            SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
-            MEDIA_DATA_PATH: ${{ secrets.MEDIA_DATA_PATH }}
-            FETCH_MEDIA_DATA: ${{ secrets.FETCH_DATA }}
+            DEPLOY_SH: ${{ github.workspace }}/deploy.sh
+            DEPLOY_SH_URL: ${{ vars.DEPLOY_SH_URL }}
             DUMMY_MEDIA_DATA: ${{ secrets.DUMMY_MEDIA_DATA }}
+            FETCH_MEDIA_DATA: ${{ secrets.FETCH_DATA }}
+            GIT_REF: ${{ secrets.GIT_REF }}
+            GIT_URL: ${{ secrets.GIT_URL }}
+            KNOWN_HOSTS_PATH: ${{ github.workspace }}/../known_hosts
+            MEDIA_DATA_PATH: ${{ secrets.MEDIA_DATA_PATH }}
+            SERVER_ARGS: ${{ secrets.SERVER_ARGS }}
+            SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+            SSH_HOST: ${{ secrets.SSH_HOST }}
+            SSH_KEY_PATH: ${{ github.workspace }}/../private.key
+            SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+            SSH_PORT: ${{ secrets.SSH_PORT }}
+            SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            SSH_USER: ${{ secrets.SSH_USER }}

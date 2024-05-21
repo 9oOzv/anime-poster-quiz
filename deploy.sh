@@ -18,7 +18,7 @@ After=network.target
 Type=simple
 Environment="DEBUG=1"
 WorkingDirectory=$deploy_path
-ExecStart=/usr/bin/node server.mjs serve -p "$deploy_port" ${DUMMY_MEDIA_DATA:+"--dummy-media-data"} --media-data "$media_data_path"
+ExecStart=/usr/bin/node server.mjs serve -p "$deploy_port" ${DUMMY_MEDIA_DATA:+"--dummy-media-data"} --media-data "$media_data_path" ${SERVER_ARGS-}
 Restart=on-failure
 
 [Install]
