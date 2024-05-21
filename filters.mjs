@@ -1,114 +1,71 @@
-import { arrayAlmostHas, inBetween, tmpRef } from './utils.mjs';
+import { arrayAlmostHas, inBetween } from './utils.mjs';
 import { getLog } from './log.mjs';
 
 const log = getLog('apq');
 
 
 function isValidMedia(media) {
-  if(!media) {
-    log.warn({ media });
-    return false;
+  switch(undefined) {
+    case media:
+      log.warn({ media });
+      return false;
+    case media.coverImage?.extraLarge:
+    case media.title?.english ?? media.title?.romaji:
+      log.trace({ media });
+      return false;
+    default:
+      return true;
   }
-  if(!media.coverImage.extraLarge) {
-    log.trace({ media });
-    return false;
-  }
-  if(!(media.title.english || media.title.romaji)) {
-    log.trace({ media });
-    return false;
-  }
-  return true;
 }
 
 
-const mediaFilters = new Map(Object.entries({
-  popularity: (m, min, max) => inBetween(m.popularity, min, max),
-  favourites: (m, min, max) => inBetween(m.favourites, min, max),
-  year: (m, min, max) => inBetween(m.seasonYear, min, max),
-  sfw: (m) => m.isAdult,
-  nsfw: (m) => !m.isAdult,
-  genres: (m, ...genres) => genres.some(g => arrayAlmostHas(m.genres, g)),
-  tags: (m, ...tags) => tags.some(t => arrayAlmostHas((m.tags ?? []).map(t => t.name), t)),
-  validMedia: isValidMedia
-}));
-
-
-class Filter {
-
-  #name
-  #f
-  #args
-
-  constructor(filterSpec) {
-    this.#name = filterSpec.name;
-    this.#f = mediaFilters.get(filterSpec.name);
-    this.#args = filterSpec.args;
-  }
-  
-  run(media) {
-    let ref = tmpRef();
-    log.trace({ ref: ref, filter: this.info, media: media.info });
-    const pass = this.#f(media, ...this.#args);
-    log.trace({ ref: ref, filter: this.info, media: media, pass: pass });
-    return pass;
-  }
-
-  get info() {
-    return {
-      name: this.#name,
-      args: this.#args
+const mediaFilters = new Map(
+  Object.entries(
+    {
+      popularity: (m, min, max) => inBetween(m.popularity, min, max),
+      favourites: (m, min, max) => inBetween(m.favourites, min, max),
+      year: (m, min, max) => inBetween(m.seasonYear, min, max),
+      sfw: (m) => m.isAdult,
+      nsfw: (m) => !m.isAdult,
+      genres: (m, ...genres) => genres.some(g => arrayAlmostHas(m.genres, g)),
+      tags: (m, ...tags) => tags.some(t => arrayAlmostHas((m.tags ?? []).map(t => t.name), t)),
+      validMedia: isValidMedia
     }
-  }
-}
+  )
+);
 
 
-class FilterCollection {
+class Filters {
   #filters = [];
   #filterSpecs = [];
 
   constructor(filterSpecs) {
     log.debug({ filterSpecs });
-    this.#filterSpecs = [
-      {
-        name: 'validMedia',
-        args: []
-      },
+    this.#filterSpecs = {
+      validMedia: {},
       ...filterSpecs
-    ];
+    };
     this.createFilters();
   }
 
-  createFilter(filterSpec) {
-    log.debug({ filterSpec });
-    this.#filters.push(new Filter(filterSpec));
-  }
-
   createFilters() {
-    this.#filters = [];
-    for(const f of this.#filterSpecs) {
-      this.createFilter(f);
-    }
+    this.#filters = 
+      Object.entries(this.#filterSpecs)
+      .filter(([, { enabled }]) => enabled)
+      .map(([name, { args }]) => {
+        const mf = mediaFilters.get(name);
+        return (media) => mf(media, ...args)
+      });
   }
 
-  filter(medias) {
-    log.debug({ info: this.info });
-    const filters = this.#filters;
+  run(medias) {
+    log.debug({ filters: this.#filters });
     return medias.filter(
-      m => filters.every(f => f.run(m))
+      m => this.#filters.every(f => f(m))
     )
-  }
-
-  get info() {
-    return {
-      filters: this.#filters.map(f => f.info)
-    }
   }
 
 }
 
 
-export {
-  mediaFilters,
-  Filter,
-  FilterCollection
-};
+export default Filters;

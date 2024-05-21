@@ -90,6 +90,4 @@ class HintImage {
 
 }
 
-export {
-  HintImage
-}
+export default HintImage

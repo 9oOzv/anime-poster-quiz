@@ -3,6 +3,11 @@
   src: url('./hack.ttf');
 }
 
+@font-face {
+  font-family: 'dejavu';
+  src: url('./dejavu.ttf');
+}
+
 * {
   box-sizing: border-box;
 }
@@ -120,7 +125,7 @@ body {
   font-size: var(--normal);
   margin: 0;
   padding: 0;
-  font-family: hack, monospace;
+  font-family: hack, dejavu, monospace;
   font-weight: 700;
   background: rgb(5, 5, 5);
   color: white;

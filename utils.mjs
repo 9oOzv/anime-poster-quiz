@@ -1,48 +1,14 @@
-
-function normalizeString(str) {
-  return str
-    .normalize("NFKD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
-}
-
-
-function isTypeable(str) {
-  if(typeof str !== 'string') { return false; }
-  return true
-}
-
-
-function compare(a, b) {
-  const c = a.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  const d = b.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  return c === d;
-}
-
-
-function arrayAlmostHas(array, value) {
-  if(!Array.isArray(array)){
-    return false;
-  }
-  return array.some(v => compare(v, value));
-}
-
-
-function inBetween(v, a, b) {
-  return (a ?? -Infinity) <= v && v <= (b ?? Infinity);
-}
-
-
-function truncate(text, length) {
-  return text.length > length
-    ? `${text.slice(0, length - 3)}...`
-    : text;
-}
-
-
-function countNewlines(text) {
-  return text.split(/\r\n|\r|\n/).length;
-}
+const uid = () => Date.now().toString(36);
+const normalizeString = (str) => str.normalize("NFKD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+const combineSimilar = (array) => Array.from(new Map(array.map(v => [normalizeString(v), v])).values());
+const compare = (a, b) => normalizeString(a) === normalizeString(b);
+const arrayAlmostHas = (array, value) => Array.isArray(array) && array.some(v => compare(v, value));
+const inBetween = (v, a, b) => (a ?? -Infinity) <= v && v <= (b ?? Infinity);
+const truncate = (s, n) => s.length > n ? `${s.slice(0, n - 3)}...` : s;
+const countNewlines = (text) => text.split(/\r\n|\r|\n/).length;
+const nonNulls = (array) => array.filter(v => (v ?? null) !== null);
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const random = (array) => array[Math.floor(Math.random() * array.length)];
 
 
 function wrap(text, width, firstLineWidth) {
@@ -54,13 +20,11 @@ function wrap(text, width, firstLineWidth) {
   let words = text.split(' '); // Split text into words
   lines = [];
   let currentLine = '';
-  let currentWidth = firstLineWidth;
   words.forEach(word => {
     if (currentLine.length + word.length <= width) {
       currentLine += word + ' ';
     } else {
       lines.push(currentLine);
-      currentWidth = width;
       currentLine = word + ' ';
     }
   });
@@ -79,33 +43,19 @@ function indent(text, indent, indentFirstLine = true) {
 }
 
 
-function nonNulls(array) {
-  return array.filter(v => (v ?? null) !== null);
-}
-
-
-function tmpRef() {
-  return Date.now().toString(36).slice(4);
-}
-
-
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-
 export {
-  normalizeString,
-  isTypeable,
-  compare,
   arrayAlmostHas,
-  inBetween,
-  truncate,
+  compare,
   countNewlines,
-  wrap,
+  inBetween,
   indent,
   nonNulls,
-  tmpRef,
-  sleep
+  normalizeString,
+  random,
+  sleep,
+  truncate,
+  uid,
+  wrap,
+  combineSimilar,
 }
 

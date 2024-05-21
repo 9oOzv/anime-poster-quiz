@@ -1,6 +1,8 @@
 import bunyan from 'bunyan';
 
+
 const logs = new Map();
+
 
 function getLog(name) {
   if (!logs.has(name)) {
@@ -8,7 +10,7 @@ function getLog(name) {
       name,
       bunyan.createLogger({
         name: name,
-        level: 'info',
+        level: 'debug',
         src: true,
         serializers: bunyan.stdSerializers
       })
@@ -17,9 +19,11 @@ function getLog(name) {
   return logs.get(name);
 }
 
+
 function configLog(name, level=undefined, fields={}) {
   const log = getLog(name);
-  if (!(level ?? true)) {
+  log.trace({ name, level, fields });
+  if ((level ?? false) !== false) {
     log.level(level);
   }
   delete fields.stream;
@@ -31,6 +35,7 @@ function configLog(name, level=undefined, fields={}) {
   });
   return log;
 }
+
 
 export {
   getLog,

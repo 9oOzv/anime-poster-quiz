@@ -7,13 +7,13 @@ var answerDatalist = null;
 var compSelection = -1;
 var completionTypeCheckbox = null;
 var responsiveCheckbox = true;
-var image = null;
 var setCompletionsFunction = null;
 var prevViewId = null;
 var currentViewId = null;
 var initialViewId = null;
 var responsiveLayout = true;
 var ws = null;
+var preAutofillInput = '';
 const responsiveIds = [
   "root",
   "body",
@@ -21,17 +21,12 @@ const responsiveIds = [
 ]
 const viewIds = [
   "app-main",
-  "menu"
+  "menu",
+  "settings"
 ]
 var responsiveElements = null;
 var viewElements = null;
-var statusMessages = [];
 const worker = new Worker('static/worker.js', { type: "module" });
-
-
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 
 function createElement(element, classes, children, textContent) {
@@ -85,15 +80,6 @@ function reportError(error, msg) {
   } else {
     console.warn(error)
     addStatus(error, 'bad');
-  }
-}
-
-
-function responseReport(response, successMsg, errorMsg) {
-  if (!response.ok) {
-    reportError(errorMsg);
-  } else {
-    reportSuccess(successMsg);
   }
 }
 
@@ -160,12 +146,12 @@ function setCompletionType(native) {
 
 
 function resultLine(name, result) {
-  class_ = result.correct ? 'good' : 'bad';
+  const _class = result.correct ? 'good' : 'bad';
   const spans = [
-      createElement('span', class_, null, name),
-      createElement('span', class_, null, result.answer),
-      createElement('span', class_, null, `${result.time}ms`),
-      createElement('span', class_, null, result.correct ? '✓' : '✗'),
+      createElement('span', _class, null, name),
+      createElement('span', _class, null, result.answer),
+      createElement('span', _class, null, `${result.time}ms`),
+      createElement('span', _class, null, result.correct ? '✓' : '✗'),
   ];
   return createElement(
     'div',
@@ -191,7 +177,7 @@ function updateSelectedCompletion(items) {
 
 
 function sendCommand(command, ...args) {
-  ws.send({ command, args });
+  ws.send(JSON.stringify({ command, args }));
 }
 
 
@@ -289,6 +275,10 @@ function toggleView(viewId) {
 
 function toggleMenu() {
   toggleView('menu');
+}
+
+function toggleSettings() {
+  toggleView('settings');
 }
 
 function toggleResponsiveLayout() {
