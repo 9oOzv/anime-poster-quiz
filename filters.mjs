@@ -30,8 +30,8 @@ const mediaFilters = new Map(Object.entries({
   popularity: (m, min, max) => inBetween(m.popularity, min, max),
   favourites: (m, min, max) => inBetween(m.favourites, min, max),
   year: (m, min, max) => inBetween(m.seasonYear, min, max),
-  sfw: (m) => m.isAdult,
-  nsfw: (m) => !m.isAdult,
+  sfw: (m) => !m.isAdult,
+  nsfw: (m) => m.isAdult,
   genres: (m, ...genres) => genres.some(g => arrayAlmostHas(m.genres, g)),
   tags: (m, ...tags) => tags.some(t => arrayAlmostHas((m.tags ?? []).map(t => t.name), t)),
   validMedia: isValidMedia
