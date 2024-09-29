@@ -1,4 +1,5 @@
 {
+  "name": "anime-poster-quiz",
   "dependencies": {
     "bunyan": "^1.8.15",
     "canvas": "^2.11.2",
@@ -6,5 +7,8 @@
     "winston": "^3.13.0",
     "ws": "^8.17.0",
     "yargs": "^17.7.2"
+  },
+  "scripts": {
+    "start": "node server.mjs serve --ri 1000 --frw 5000 --nc 22 --min-cs 0.02 --max-cs 0.12 --rt 10000 -f 'popularity(7000,9999999)' --debug"
   }
 }
