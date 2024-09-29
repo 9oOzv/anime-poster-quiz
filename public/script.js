@@ -125,6 +125,7 @@ function createCompletionOption(text) {
 
 
 async function updateCompletions() {
+  console.debug({ answerInputValue: answerInput.value });
   preAutofillInput = answerInput.value;
   worker.postMessage({ command: "complete", query: answerInput.value });
 }
