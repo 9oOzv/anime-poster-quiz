@@ -359,6 +359,7 @@ commands.reset = function() {
   completions.innerHTML = '';
   compSelection = -1;
   appContent.innerHTML = '';
+  answerInput.value = '';
   image = null;
 }
 
