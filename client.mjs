@@ -8,7 +8,7 @@ class Client {
     log.info({ this: this });
     this.id = Date.now().toString(36);
     this.#ws = ws;
-    this.#ws.on('message', (event) => this.onMessage(event.data));
+    this.#ws.on('message', (data) => this.onMessage(data.toString()));
     this.#ws.on('close', () => this.game && this.game.removeClient(this));
     this.game = null;
     log.info({ this: this });

@@ -191,7 +191,7 @@ function updateSelectedCompletion(items) {
 
 
 function sendCommand(command, ...args) {
-  ws.send({ command, args });
+  ws.send(JSON.stringify({ command, args }));
 }
 
 
@@ -387,7 +387,8 @@ function init() {
   answerInput = document.getElementById("answer-input");
   nickInput = document.getElementById('nickname-input');
   initCompletion();
-  ws = new WebSocket('ws://localhost:3000/ws');
+  ws_url = `${location.origin.replace(/^http/, 'ws')}/ws`;
+  ws = new WebSocket(ws_url);
   ws.addEventListener("message", (event) => {
     const data = JSON.parse(event.data);
     console.debug({command: data.command});
