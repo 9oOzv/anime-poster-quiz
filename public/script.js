@@ -311,6 +311,14 @@ commands.showImage = function(base64Data) {
   replaceContent(appContent, img);
 }
 
+commands.error = function(message) {
+  reportSuccess(message);
+}
+
+commands.success = function(message) {
+  reportSuccess(message);
+}
+
 
 commands.showResults = function(results) {
   lines = Object.entries(results).map(
