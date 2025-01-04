@@ -2,7 +2,7 @@
   "name": "anime-poster-quiz",
   "dependencies": {
     "bunyan": "^1.8.15",
-    "canvas": "^2.11.2",
+    "canvas": "^3.0.1",
     "express": "^4.19.2",
     "winston": "^3.13.0",
     "ws": "^8.17.0",
