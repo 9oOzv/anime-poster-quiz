@@ -5,7 +5,12 @@ import { compare, sleep } from './utils.mjs';
 import { exampleMediaData } from './example-data.mjs';
 import { HintImage } from './hintimage.mjs'
 import { MediaCollection } from './media.mjs';
-import { log } from './log.mjs';
+import {
+  log,
+  debugged,
+  traced,
+  infoed
+} from './log.mjs';
 
 class GameError extends Error {
   constructor(message) {
@@ -17,22 +22,10 @@ class GameError extends Error {
 
 
 class Game {
-  #config = {
-    messageWait: 10000,
-    revealWait: 5000,
-    resultWait: 10000,
-    resetWait: 1000,
-    shortWait: 200,
-    numCircles: 20,
-    circleSizeMin: 0.02,
-    circleSizeMax: 0.1,
-    filters: []
-  };
-  #adminConfig = {
-    mediaDataPath: 'media.json'
-  };
+
+  #config;
+  #newConfig
   #id;
-  #mediaData;
   #answers;
   #results;
   hintImage;
@@ -42,37 +35,58 @@ class Game {
   #wait;
   #mediaCollection;
   messages;
-  #newConfig;
   #clients;
 
-  constructor(
-    adminConfig,
-    gameConfig
-  ) {
-    log.debug({ this: this, adminConfig, gameConfig });
+  constructor(config) {
+    log.debug({ this: this, config });
+    this.#config = config;
     const id = Date.now().toString(36);
     this.#id = id;
-    this.#adminConfig = adminConfig;
     this.#clients = new Set();
-    this.setGameConfig(gameConfig);
+    this.setupLogging();
   }
 
-  setGameConfig(config) {
-    log.info({ this: this, config });
-    for(const [k, v] of Object.entries(config)) {
-      this.#config[k] = v;
-    }
-    log.debug({ this: this, config: this.#config });
+  setupLogging() {
+    const full = {};
+    // const noThis = {
+    //   logThis: false,
+    // };
+    // const nameOnly = {
+    //   logThis: false,
+    //   logArgs: false,
+    //   logResult: false,
+    // };
+    this.initClient = infoed(this.initClient, 'Client initialized');
+    this.removeClient = infoed(this.removeClient, 'Client removed');
+    this.addClient = infoed(this.addClient, 'Client added');
+    this.doReset = infoed(this.doReset, 'Resetting');
+    this.updateGameConfig = infoed(this.updateGameConfig, 'Updating config');
+    this.init = traced(debugged(this.init, full));
+    this.initClient = traced(debugged(this.initClient, full));
+    this.removeClient = traced(debugged(this.removeClient, full));
+    this.addClient = traced(debugged(this.addClient, full));
+    this.clientCommand = traced(debugged(this.clientCommand, full));
+    this.loadData = traced(debugged(this.loadData, full));
+    this.sendCommands = traced(debugged(this.sendCommands, full));
+    this.doRevealAll = traced(debugged(this.doRevealAll, full));
+    this.doRevealMore = traced(debugged(this.doRevealMore, full));
+    this.doResults = traced(debugged(this.doResults, full));
+    this.doReset = traced(debugged(this.doReset, full));
+    this.doMessage = traced(debugged(this.doMessage, full));
+    this.doStuff = traced(debugged(this.doStuff, full));
+    this.doError = traced(debugged(this.doError, full));
+    this.run = traced(debugged(this.run, full));
+    this.newQuestion = traced(debugged(this.newQuestion, full));
+    this.submitAnswer = traced(debugged(this.submitAnswer, full));
+    this.configuration = traced(debugged(this.configuration, full));
+    this.updateGameConfig = traced(debugged(this.updateGameConfig, full));
   }
+
 
   async init() {
-    this.#config = this.#newConfig ?? this.#config
-    this.#newConfig = null;
-    this.#mediaData = await this.loadData();
-    this.#mediaCollection = new MediaCollection(this.#mediaData);
-    const filterCollection = new FilterCollection(this.#config.filters);
+    this.#mediaCollection = new MediaCollection(this.loadData());
+    const filterCollection = new FilterCollection(this.#config.parsedFilters);
     this.#mediaCollection.setFilters(filterCollection);
-    this.#mediaData = [];
     this.#answers = {};
     this.#results = {};
     this.hintImage = null
@@ -106,16 +120,16 @@ class Game {
   }
 
   async loadData() {
-    const mediaDataPath = this.#adminConfig.mediaDataPath;
+    const mediaDataPath = this.#config.mediaDataPath;
     if (!mediaDataPath) {
       log.info({ this: this, exampleMediaData });
       return exampleMediaData;
     }
-    return await fs.readFile(this.#adminConfig.mediaDataPath, 'utf8')
+    return await fs.readFile(this.#config.mediaDataPath, 'utf8')
       .then(JSON.parse)
       .catch(
         error => {
-          log.error({ this: this, path: this.#adminConfig.mediaDataPath, error: error });
+          log.error({ this: this, path: this.#config.mediaDataPath, error: error });
           log.error({ this: this, exampleMediaData });
           return exampleMediaData;
         }
@@ -149,9 +163,7 @@ class Game {
 
   doResults() {
     log.info({ this: this });
-    const results
-      = this.#results
-      = this.#answers;
+    const results = this.#answers;
     this.sendCommands('showResults', results);
     this.#phase = 'results';
     this.#wait = this.#config.resultWait;
@@ -160,10 +172,6 @@ class Game {
 
   async doReset() {
     log.info({ this: this });
-    if(this.#newConfig) {
-      await this.init();
-      return;
-    }
     this.sendCommands('reset');
     await this.newQuestion();
     this.#phase = 'guessing';
@@ -214,10 +222,8 @@ class Game {
 
   async run() {
     while(true) {
-      log.trace({ this: this, phase: this.#phase });
       await this.doStuff()
         .catch(error => this.doError(error));
-      log.trace({ this: this, phase: this.#phase, wait: this.#wait });
       await sleep(this.#wait);
     }
   }
@@ -255,21 +261,16 @@ class Game {
   }
 
   get completions() {
-    log.debug({ this: this });
-    log.trace({ this: this, mediaCollection: this.#mediaCollection });
     return this.#mediaCollection.completions();
   }
 
-  get configuration() {
-    return this.#config;
+  configuration() {
+    return this.#config.getGroup('game');
   }
 
-  async configure(config, immediate = false) {
-    log.info({ this: this, config, immediate })
-    this.#newConfig = config;
-    if(immediate) {
-      this.#phase = '';
-    }
+  updateGameConfig(data) {
+    this.#config.update(data, 'game');
+    this.init();
   }
 
 }
