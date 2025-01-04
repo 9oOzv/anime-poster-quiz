@@ -1,0 +1,18 @@
+[Unit]
+Description=Anime Poster Quiz
+Documentation=man:podman-kube-play(1)
+Wants=default.target
+After=default.target
+RequiresMountsFor=%t/containers
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+TimeoutStopSec=70
+WorkingDirectory=/srv/anime-poster-quiz
+ExecStart=/usr/bin/podman kube play --replace --service-container=true /srv/anime-poster-quiz/podman.yaml
+ExecStop=/usr/bin/podman kube down /srv/anime-poster-quiz/podman.yaml
+Type=notify
+NotifyAccess=all
+
+[Install]
+WantedBy=default.target

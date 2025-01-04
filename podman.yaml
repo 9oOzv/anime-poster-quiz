@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anime-poster-quiz
+  namespace: default
+  labels:
+    app: anime-poster-quiz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: anime-poster-quiz
+  template:
+    metadata:
+      labels:
+        app: anime-poster-quiz
+    spec:
+      hostNetwork: true
+      containers:
+        - name: anime-poster-quiz
+          image: docker.io/library/node:alpine
+          workingDir: /app
+          command:
+            - npm
+            - start
+          containerPort: 8082
+          volumeMounts:
+            - name: app
+              mountPath: /app
+      volumes:
+        - name: app
+          hostPath:
+            path: ./
